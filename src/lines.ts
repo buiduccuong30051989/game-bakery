@@ -1,18 +1,17 @@
 // Mọi câu thoại sinh từ dữ liệu (khách × món × số) + token đánh vần. File THUẦN (Node chạy được):
 // scripts/word-audio.mjs gọi allGeneratedLines() để ghi scripts/audio/_gen.txt, game dùng các hàm key*().
 import { spell, letterAudio, wordId, type SpellToken } from './spell.ts';
-import { ITEMS, CUSTOMERS, CLASSIFIERS, NUMBER_TEXT, type ItemDef, type CustomerDef, type Classifier } from './data.ts';
+import { ITEMS, CUSTOMERS, NUMBER_TEXT, type ItemDef, type CustomerDef } from './data.ts';
 
 /** key|text|rate (rate rỗng = mặc định) */
 export type GenLine = [key: string, text: string, rate?: number];
-
-const CLS_SLUG: Record<Classifier, string> = { 'quả': 'qua', 'cái': 'cai', 'chùm': 'chum', 'cây': 'cay', 'hộp': 'hop', 'con': 'con', 'bắp': 'bap' };
 
 export const itemId = (it: ItemDef) => wordId(it.word);
 export const keyName = (it: ItemDef) => `name_${itemId(it)}`;
 /** "ba quả táo" */
 export const keyQty = (it: ItemDef, n: number) => `q${n}_${itemId(it)}`;
-export const keyEach = (cls: Classifier) => `each_${CLS_SLUG[cls]}`;
+/** chỉ chữ món: "bánh" (đọc bảng giá) */
+export const keyWord = (it: ItemDef) => `word_${itemId(it)}`;
 export const keyNum = (n: number) => `n${n}`;
 export const keyXu = (n: number) => `xu${n}`;
 
@@ -41,7 +40,6 @@ export function customerLines(c: CustomerDef): GenLine[] {
     [`greet2_${c.id}`, cat ? `Meo! Nhím ơi, ${P} đói bụng quá. ${P} muốn mua` : `Nhím ơi! Hôm nay ${P} muốn mua`, r],
     [`remind_${c.id}`, `Nhím ơi, ${P} muốn mua`, r],
     [`more_${c.id}`, `${P} cần thêm`, r],
-    [`over_${c.id}`, `Ơ, nhiều quá rồi Nhím ơi! ${P} chỉ cần`, r],
     [`wrong_${c.id}`, `Ơ, ${P} không mua`, r],
     [`thanks1_${c.id}`, cat ? `Meo meo! Đúng rồi! ${P} cảm ơn Nhím!` : `Đúng rồi! Cảm ơn Nhím nhé!`, r],
     [`thanks2_${c.id}`, cat ? `Ngon quá! ${P} thương Nhím nhất!` : `Giỏi quá! ${P} thương Nhím lắm!`, r],
@@ -52,10 +50,10 @@ export function customerLines(c: CustomerDef): GenLine[] {
   return L;
 }
 
-export const CUSTOMER_KEYS = ['greet1', 'greet2', 'remind', 'more', 'over', 'wrong', 'thanks1', 'thanks2', 'pay', 'bye', 'tap'] as const;
+export const CUSTOMER_KEYS = ['greet1', 'greet2', 'remind', 'more', 'wrong', 'thanks1', 'thanks2', 'pay', 'bye', 'tap'] as const;
 export const ck = (kind: typeof CUSTOMER_KEYS[number], c: CustomerDef) => `${kind}_${c.id}`;
 
-/** Mọi dòng tự sinh: tên món, "N quả táo", "mỗi quả một xu", số, xu, token đánh vần, chữ cái A2, câu khách. */
+/** Mọi dòng tự sinh: tên món, chữ món, "N quả táo", số, xu, token đánh vần, chữ cái A2, câu khách. */
 export function allGeneratedLines(): GenLine[] {
   const out = new Map<string, GenLine>();
   const add = (l: GenLine) => {
@@ -67,10 +65,10 @@ export function allGeneratedLines(): GenLine[] {
     add([keyNum(n), NUMBER_TEXT[n].replace(/^./, (s) => s.toUpperCase())]);
     add([keyXu(n), `${NUMBER_TEXT[n]} xu`]);
   }
-  for (const cls of CLASSIFIERS) add([keyEach(cls), `Mỗi ${cls} một xu.`]);
   for (const it of ITEMS) {
     const s = spell(it.word);
     add([keyName(it), `${it.cls} ${it.word}`]);
+    add([keyWord(it), it.word]);
     for (let n = 1; n <= 10; n++) add([keyQty(it, n), `${NUMBER_TEXT[n]} ${it.cls} ${it.word}`]);
     for (const [k, t] of s.lines) add([k, t]);
     const correct = Array.from(s.word)[it.fill.index];
@@ -103,7 +101,7 @@ export function validateData(): string[] {
   }
   for (const c of CUSTOMERS) {
     for (const w of c.likes) if (!ITEMS.some((i) => i.word === w)) errs.push(`${c.id}: món "${w}" không có trong ITEMS`);
-    if (c.kind === 'human' && c.likes.length < 3) errs.push(`${c.id}: cần ≥ 3 món hay mua`);
+    if (c.kind === 'eg' && c.likes.length < 3) errs.push(`${c.id}: cần ≥ 3 món hay mua`);
   }
   return errs;
 }

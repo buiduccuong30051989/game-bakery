@@ -29,8 +29,9 @@ export const PARAM = {
   decor: params.has('decor') ? Number(params.get('decor')) : null,
   /** giả lập tổng sao (không lưu) */
   stars: params.has('stars') ? Number(params.get('stars')) : null,
-  /** ép số món khách đầu tiên gọi (soát khay 2 bậc) */
-  n: params.has('n') ? Math.max(1, Math.min(10, Number(params.get('n')))) : null,
+  /** ép phép cộng của khách đầu: ?a=3&b=2 (mỗi số 1..5) */
+  a: params.has('a') ? Math.max(1, Math.min(5, Number(params.get('a')))) : null,
+  b: params.has('b') ? Math.max(1, Math.min(5, Number(params.get('b')))) : null,
   /** ngày ngắn (soát nhanh cuối ngày): số khách */
   day: params.has('day') ? Math.max(1, Math.min(6, Number(params.get('day')))) : null,
 };

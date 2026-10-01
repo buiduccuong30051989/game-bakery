@@ -1,18 +1,21 @@
-// Luồng chơi: 1 ngày = 6 khách. Mỗi khách: vào cửa (chuông) → tới quầy, vẫy, gọi món (bong bóng hình + chữ + ×N)
-// → Nhím chạm món trên kệ (bay vào khay, đếm to) → 🛎️ giao → khách kiểm (thiếu / dư / nhầm: nhắc nhẹ)
-// → cấp 2: trả xu (đếm xu, chọn số) + có khi điền chữ thiếu trên bảng giá (A2) → vui (nhảy, tim, ⭐) → chào, ra về.
-// Không có thua: sai chỉ nhận gợi ý; ngồi im 10 s khách nhắc lại món + tay chỉ đúng chỗ.
+// Luồng chơi: 1 ngày = 6 khách (4 người nhà + 1 bạn Equestria Girls + 1 mèo). Mỗi khách: vào cửa (chuông) → tới quầy,
+// vẫy, gọi 2 phần ("3 quả táo và 2 quả táo nữa" / "2 cái bánh và 3 cây kem") → thẻ gọi món là phép cộng bằng hình
+// (🍎🍎🍎 + 🍎🍎 = ?) → Nhím chạm món trên kệ, món bay vào 2 ngăn khay → 2 ngăn trượt lại gần → chọn tổng (3 số)
+// → 🛎️ giao → khách nói cả câu "Ba cộng hai bằng năm!" → cấp 2: trả xu cũng là phép cộng (giá túi 1 + giá túi 2)
+// + có khi điền chữ thiếu trên bảng giá (A2) → vui (nhảy, tim, ⭐) → chào, ra về.
+// Không có thua: chọn sai tổng thì món trên khay tự đếm 1..N cho bé thấy; ngồi im 10 s khách nhắc + tay chỉ đúng chỗ.
 import * as THREE from 'three';
 import { Shop, SPOT, COUNTER_Y, TRAY_STEP } from './shop.ts';
-import { makeActor, Cat, Human, type Actor, yawTo } from './actors.ts';
+import { Cat, type Actor, yawTo } from './actors.ts';
+import { makeActor, EGActor } from './eg.ts';
 import { Magic } from './magic.ts';
 import { tween, updateTweens, wait, easeOutQuad, easeInOutSine, finishAllTweens } from './tween.ts';
 import { play, sfx, speakSequence, stopSpeech, chime, musicBox, preload } from './audio.ts';
 import { familyCheer, familyCheerAll, clearFamily, FAMILY_KEYS } from './family.ts';
 import { prefetch, emojiSprite, emojiTexture } from './assets.ts';
 import { els, renderWord, wobbleEl, bumpEl, toast, confetti, flyStar, showOptions, showPanel, pointAt } from './ui.ts';
-import { ITEMS, CUSTOMERS, LEVELS, DECOR, DAY_SIZE, TRAY_MAX, itemByWord, type ItemDef, type CustomerDef, type LevelDef } from './data.ts';
-import { keyName, keyQty, keyEach, keyNum, keyXu, wordInfo, ck } from './lines.ts';
+import { ITEMS, CUSTOMERS, NHIM, LEVELS, DECOR, DAY_SIZE, itemByWord, type ItemDef, type CustomerDef, type LevelDef } from './data.ts';
+import { keyName, keyQty, keyNum, keyXu, keyWord, wordInfo, ck } from './lines.ts';
 import { letterAudio } from './spell.ts';
 import { type Progress, saveProgress, level2Unlocked, PARAM } from './progress.ts';
 
@@ -20,11 +23,14 @@ const IDLE_MS = 10000;
 const shuffle = <T>(a: T[]): T[] => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 const pick = <T>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
 
-interface TrayItem { item: ItemDef; mesh: THREE.Group; hit: THREE.Mesh; busy: boolean }
-interface Coin { mesh: THREE.Group; hit: THREE.Mesh; counted: boolean }
-interface Visit { cust: CustomerDef; item: ItemDef; n: number }
-interface Order extends Visit { actor: Actor; tries: number; index: number }
-type Phase = 'menu' | 'enter' | 'order' | 'check' | 'coins' | 'choose' | 'fill' | 'busy' | 'end';
+interface TrayItem { item: ItemDef; mesh: THREE.Group; hit: THREE.Mesh; busy: boolean; zone: 0 | 1 }
+interface Coin { mesh: THREE.Group; zone: 0 | 1 }
+/** 1 phần của đơn: món + số lượng */
+interface Part { item: ItemDef; n: number }
+interface Visit { cust: CustomerDef; parts: [Part, Part]; /** cấp 2: giá túi 1, túi 2 (xu) */ price: [number, number] }
+interface Order extends Visit { actor: Actor; tries: number; wrongTaps: number; index: number }
+/** order = đang lấy món; sum = chọn tổng; bell = chờ bấm chuông; pay = cộng xu; fill = bảng giá A2 */
+type Phase = 'menu' | 'enter' | 'order' | 'sum' | 'bell' | 'check' | 'pay' | 'fill' | 'busy' | 'end';
 type HandTarget = { kind: '3d'; at: THREE.Vector3 } | { kind: 'el'; el: HTMLElement } | null;
 
 class Aborted extends Error {}
@@ -40,6 +46,10 @@ export class Game {
   private readonly actors = new Set<Actor>();
   mun!: Cat;
   rom!: Cat;
+  /** Nhím (Twilight) đứng quầy */
+  nhim: EGActor | null = null;
+  /** dấu + giữa 2 ngăn khay */
+  private plusSign!: THREE.Sprite;
   private catBusy = new Set<Cat>();
   private wanderT = 3;
   private munT = 20;
@@ -65,6 +75,8 @@ export class Game {
   private fps = 60;
   private orderSide: 1 | -1 = 1;
   private bellRect: { x: number; y: number; w: number } | null = null;
+  /** nút đáp án đang hiện (tự chơi bấm hộ) */
+  private buttons: HTMLButtonElement[] = [];
   /** đang tự chơi (?auto=1) */
   readonly auto = PARAM.auto;
 
@@ -108,7 +120,18 @@ export class Game {
 
   // ------------------------------------------------------------------ dựng
   async init(): Promise<void> {
-    await prefetch([...new Set([...CUSTOMERS.map((c) => c.model), ...ITEMS.map((i) => i.model)])]);
+    // chỉ tải trước mèo + Nhím + món ăn; khách của ngày tải ở startDay (mỗi model EG ~5 MB)
+    await prefetch(['cat.glb', NHIM.model, ...ITEMS.map((i) => i.model)]);
+    const nhim = await makeActor(NHIM) as EGActor;
+    nhim.setPos(new THREE.Vector3(2.22, 0, 0.78));
+    nhim.yaw = nhim.targetYaw = -0.45;
+    this.addActor(nhim);
+    this.nhim = nhim;
+    this.addApron(nhim);
+    this.plusSign = emojiSprite('➕', 0.36);
+    this.plusSign.position.set(SPOT.tray.x, COUNTER_Y + 0.22, SPOT.tray.z + 0.42);
+    this.plusSign.visible = false;
+    this.scene.add(this.plusSign);
     const [mun, rom] = await Promise.all([makeActor(CUSTOMERS.find((c) => c.id === 'mun')!), makeActor(CUSTOMERS.find((c) => c.id === 'rom')!)]) as [Cat, Cat];
     this.mun = mun; this.rom = rom;
     mun.setPos(SPOT.sill);
@@ -166,11 +189,11 @@ export class Game {
   }
 
   private updateDom(): void {
-    // chuông 🛎️ đứng ở đầu phải quầy (theo khung hình, mọi tỉ lệ màn)
+    // chuông 🛎️ đứng ở đầu trái quầy (đầu phải là chỗ Nhím đứng) (theo khung hình, mọi tỉ lệ màn)
     if (!els.bell.hidden) {
-      const b = this.toScreen(new THREE.Vector3(2.75, COUNTER_Y + 0.45, 0.2));
+      const b = this.toScreen(new THREE.Vector3(-2.7, COUNTER_Y + 0.45, 0.2));
       const bw = els.bell.offsetWidth;
-      const bx = Math.min(window.innerWidth - bw - 14, b.x - bw / 2);
+      const bx = Math.max(14, b.x - bw / 2);
       const by = Math.max(130, b.y - bw / 2);
       els.bell.style.translate = `${bx}px ${by}px`;
       this.bellRect = { x: bx, y: by, w: bw };
@@ -252,8 +275,6 @@ export class Game {
       this.onTap(ndc);
     });
     els.bell.addEventListener('click', () => this.onBell());
-    els.ordWord.addEventListener('click', () => void this.spellOrder());
-    els.ordPic.addEventListener('click', () => this.repeatOrder());
     els.say.addEventListener('click', () => this.repeatFn?.());
   }
 
@@ -261,15 +282,12 @@ export class Game {
     this.ray.setFromCamera(ndc, this.camera);
     const targets: THREE.Object3D[] = [];
     if (this.phase === 'order') targets.push(...this.shop.hits, ...this.tray.map((t) => t.hit));
-    if (this.phase === 'coins') targets.push(...this.coins.filter((c) => !c.counted).map((c) => c.hit));
     const hit = this.ray.intersectObjects(targets, false)[0];
     if (hit) {
       const obj = hit.object;
       if (obj.userData.slot !== undefined) { this.tapSlot(obj.userData.slot as number); return; }
       const ti = this.tray.find((t) => t.hit === obj);
       if (ti) { this.removeTrayItem(ti); return; }
-      const coin = this.coins.find((c) => c.hit === obj);
-      if (coin) { void this.tapCoin(coin); return; }
     }
     // chạm nhân vật: khách cười, mèo kêu
     const people = [...this.actors];
@@ -290,6 +308,7 @@ export class Game {
       this.magic.burst(a.root.position.clone().add(new THREE.Vector3(0, 0.5, 0)), 14, 0xff8fb8, 1.6, 0.18, 0.7, -1);
       return;
     }
+    if (a === this.nhim) { if (!this.speaking) { void a.once('cheer'); void a.hop(1, 0.2); } return; }
     if (this.speaking || this.phase !== 'order' || a !== this.order?.actor) {
       if (a !== this.order?.actor && !a.walking) void a.once('wave');
       return;
@@ -311,18 +330,15 @@ export class Game {
 
   private checkIdle(): void {
     if (this.speaking) return;
-    if (!['order', 'coins'].includes(this.phase)) return;
+    if (!['order', 'bell'].includes(this.phase)) return;
     if (performance.now() - this.lastTap < IDLE_MS) return;
     this.lastTap = performance.now();
-    if (this.phase === 'order') {
-      const o = this.order;
-      const done = o && this.tray.length === o.n && this.tray.every((t) => t.item === o.item);
-      if (done) void this.talk(null, ['bell_hint']);
-      else if (o && !this.tray.length && o.index === 0) { void o.actor.once(o.actor instanceof Human ? 'wave' : 'yes'); void this.talk(o.actor, [ck('remind', o.cust), keyQty(o.item, o.n), 'tap_shelf']); }
-      else this.repeatOrder();
-      this.updateHint(true);
-    }
-    else if (this.phase === 'coins') { void this.talk(null, ['coin_intro']); this.updateHint(true); }
+    const o = this.order;
+    if (!o) return;
+    if (this.phase === 'bell') void this.talk(null, ['bell_hint']);
+    else if (!this.tray.length && o.index === 0) { void o.actor.once('wave'); void this.talk(o.actor, [...this.orderKeys(o, 'remind'), 'tap_shelf']); }
+    else this.repeatOrder();
+    this.updateHint(true);
   }
 
   // ------------------------------------------------------------------ ngày
@@ -339,14 +355,24 @@ export class Game {
     els.starsN.textContent = String(this.progress.stars);
     this.renderDayPips();
     // kệ: món của khách hôm nay + thêm cho đủ 8
-    const need = [...new Set(this.visits.map((v) => v.item))];
+    // kệ chỉ 8 ô: món ngoài 8 ô đầu thì đổi sang món khách thích có trên kệ (hoặc món bất kỳ trên kệ)
+    const need = [...new Set(this.visits.flatMap((v) => v.parts.map((p) => p.item)))].slice(0, this.level.shelf);
+    for (const v of this.visits) {
+      v.parts.forEach((p, z) => {
+        if (need.includes(p.item)) return;
+        const other = v.parts[1 - z].item;
+        const ok = (it: ItemDef) => need.includes(it) && (this.level.kinds === 1 || it !== other);
+        p.item = v.cust.likes.map(itemByWord).find(ok) ?? need.find(ok) ?? need[0];
+        if (this.level.kinds === 1) v.parts[1 - z].item = p.item;
+      });
+    }
     const extra = shuffle(ITEMS.filter((i) => !need.includes(i))).slice(0, Math.max(0, this.level.shelf - need.length));
     const shelf = shuffle([...need, ...extra]).slice(0, this.level.shelf);
     await this.shop.setShelf(shelf);
     this.shop.drawBoard(null, shelf);
     void prefetch([...new Set(this.visits.map((v) => v.cust.model))]);
     // tải trước tiếng (sau chạm đầu tiên: tạo AudioContext trước cử chỉ thì Chrome/iPad cảnh báo)
-    void preload(['sfx_pop', 'sfx_soft', 'sfx_tap', 'sfx_win', 'cry_cat', 'right', 'retry', 'hint_last', ...FAMILY_KEYS]);
+    void preload(['sfx_pop', 'sfx_soft', 'sfx_tap', 'sfx_win', 'cry_cat', 'right', 'retry', 'hint_last', 'cong', 'bang', 'bang_may', 'va', 'nua', 'count_hint', 'du_roi', 'dau_ne', ...FAMILY_KEYS]);
     try {
       this.phase = 'busy';
       void musicBox('C5:0.5 E5:0.5 G5:0.5 C6:1 G5:0.5 C6:1.5', 200, 0.16);
@@ -370,28 +396,42 @@ export class Game {
     }
   }
 
-  /** Chọn khách + món cho ngày: 5 người nhà xáo trộn + 1 mèo chen giữa. */
+  /** Chọn khách + đơn cho ngày: 4 người nhà + 1 bạn xáo trộn + 1 mèo chen giữa. */
   private planDay(): void {
-    const humans = shuffle(CUSTOMERS.filter((c) => c.kind === 'human'));
+    const family = shuffle(CUSTOMERS.filter((c) => c.kind === 'eg' && !c.friend));
+    const friend = pick(CUSTOMERS.filter((c) => c.friend));
     const cat = pick(CUSTOMERS.filter((c) => c.kind === 'cat'));
-    let queue: CustomerDef[] = humans.slice(0, DAY_SIZE - 1);
+    let queue: CustomerDef[] = shuffle([...family.slice(0, DAY_SIZE - 2), friend]);
     queue.splice(2 + Math.floor(Math.random() * (queue.length - 1)), 0, cat);
     const forced = PARAM.customer ? CUSTOMERS.find((c) => c.id === PARAM.customer) : undefined;
     if (forced) queue = [forced, ...queue.filter((c) => c.id !== forced.id && (forced.kind !== 'cat' || c.kind !== 'cat'))].slice(0, DAY_SIZE);
     if (PARAM.day) queue = queue.slice(0, PARAM.day);
     const used = new Set<string>();
-    let lastN = 0;
+    let last = '';
+    const L = this.level;
+    const rnd = (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo + 1));
     this.visits = queue.map((cust) => {
-      const fresh = cust.likes.filter((w) => !used.has(w));
-      const word = pick(fresh.length ? fresh : cust.likes);
-      used.add(word);
-      const [lo, hi] = this.level.count;
-      let n = lo + Math.floor(Math.random() * (hi - lo + 1));
-      if (n === lastN) n = n < hi ? n + 1 : lo;
-      lastN = n;
-      return { cust, item: itemByWord(word), n };
+      const fresh = shuffle(cust.likes.filter((w) => !used.has(w)));
+      const pool = [...fresh, ...shuffle(cust.likes.filter((w) => used.has(w)))];
+      const w0 = pool[0];
+      const w1 = L.kinds === 2 ? pool.find((w) => w !== w0) ?? w0 : w0;
+      used.add(w0); used.add(w1);
+      // a + b: tổng trong [sum], b trong [b]; cấp 2 mỗi phần ≤ 5 (khay mỗi ngăn 5 chỗ)
+      let a = 1, b = 1;
+      for (let k = 0; k < 20; k++) {
+        const s = rnd(Math.max(L.sum[0], 1 + L.b[0]), L.sum[1]);
+        b = rnd(L.b[0], Math.min(L.b[1], s - 1));
+        a = Math.min(5, s - b);
+        if (`${a}+${b}` !== last) break;
+      }
+      last = `${a}+${b}`;
+      // giá 2 túi (cấp 2): khác cặp số món để bé cộng phép mới
+      let p: [number, number] = [1, 1];
+      for (let k = 0; k < 20; k++) { p = [rnd(1, 5), rnd(1, 5)]; if (p[0] + p[1] <= 10 && (p[0] !== a || p[1] !== b)) break; }
+      return { cust, parts: [{ item: itemByWord(w0), n: a }, { item: itemByWord(w1), n: b }], price: p };
     });
-    if (PARAM.n && this.visits[0]) this.visits[0].n = PARAM.n;
+    if (PARAM.a && this.visits[0]) this.visits[0].parts[0].n = PARAM.a;
+    if (PARAM.b && this.visits[0]) this.visits[0].parts[1].n = PARAM.b;
   }
 
   /** Chấm khách trong ngày: done = số khách đã xong. */
@@ -406,17 +446,25 @@ export class Game {
   }
 
   // ------------------------------------------------------------------ 1 khách
+  /** Câu gọi món: [mở đầu] + "ba quả táo" + "và" + "hai quả táo" + ("nữa" khi cùng món). */
+  private orderKeys(o: Visit, lead: 'greet1' | 'greet2' | 'remind'): string[] {
+    const [p0, p1] = o.parts;
+    return [ck(lead, o.cust), keyQty(p0.item, p0.n), 'va', keyQty(p1.item, p1.n), ...(p0.item === p1.item ? ['nua'] : [])];
+  }
+  private sumKeys(o: Visit): string[] { return [keyNum(o.parts[0].n), 'cong', keyNum(o.parts[1].n), 'bang_may']; }
+
   private async serve(token: number, index: number): Promise<void> {
     const v = this.visits[index];
     this.phase = 'enter';
     this.repeatFn = null;
     const actor = await this.bringToCounter(token, v);
     this.alive(token);
-    const o: Order = { ...v, actor, tries: 0, index };
+    const o: Order = { ...v, actor, tries: 0, wrongTaps: 0, index };
     this.order = o;
-    // vẫy + chào + gọi món
     actor.faceCamera();
-    const wave = actor instanceof Human ? actor.once('wave') : actor.once('yes');
+    this.nhim?.face(-0.9);
+    void this.nhim?.once('wave');
+    const wave = actor.once(actor instanceof Cat ? 'yes' : 'wave');
     if (actor instanceof Cat) sfx('cry_cat', 0.8);
     await wait(250);
     this.showOrder(o);
@@ -425,11 +473,14 @@ export class Game {
     this.repeatFn = () => this.repeatOrder();
     // khách sau bước vào chờ (không chờ mèo – mèo đã ở trong tiệm)
     const next = this.visits[index + 1];
-    if (next && next.cust.kind === 'human') setTimeout(() => { if (token === this.run && this.order?.index === index) this.preEnter(token, next); }, 6500);
-    await Promise.all([wave, this.talk(actor, [ck(Math.random() < 0.5 ? 'greet1' : 'greet2', o.cust), keyQty(o.item, o.n)])]);
+    if (next && next.cust.kind === 'eg') setTimeout(() => { if (token === this.run && this.order?.index === index) this.preEnter(token, next); }, 6500);
+    await Promise.all([wave, this.talk(actor, this.orderKeys(o, Math.random() < 0.5 ? 'greet1' : 'greet2'))]);
     this.alive(token);
+    if (this.phase === 'order' && !this.tray.length) await this.talk(null, this.sumKeys(o));
+    this.alive(token);
+    this.nhim?.face(-0.45);
     if (this.auto) void this.autoOrder(token, o);
-    // chờ giao đúng
+    // chờ: đủ món → chọn tổng đúng → bấm chuông
     await new Promise<void>((res) => { this.bellResolve = res; });
     this.alive(token);
     await this.success(token, o);
@@ -530,118 +581,195 @@ export class Game {
     a.root.position.copy(to);
   }
 
-  // ------------------------------------------------------------------ thẻ gọi món
+  // ------------------------------------------------------------------ Nhím đứng quầy
+  /** Tạp dề hồng + tim trước bụng Nhím (gắn vào thân, không theo xương: tay vẫn vung tự do). */
+  private addApron(a: EGActor): void {
+    const h = a.def.height;
+    const g = new THREE.Group();
+    const cloth = new THREE.MeshStandardMaterial({ color: 0xff8fc0, roughness: 0.85, side: THREE.DoubleSide });
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.13, 0); shape.lineTo(0.13, 0); shape.lineTo(0.17, -0.36); shape.quadraticCurveTo(0, -0.42, -0.17, -0.36); shape.lineTo(-0.13, 0);
+    const skirt = new THREE.Mesh(new THREE.ShapeGeometry(shape), cloth);
+    const bib = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.17), cloth);
+    bib.position.set(0, 0.09, -0.012);
+    const heart = emojiSprite('💗', 0.09);
+    heart.position.set(0, -0.15, 0.01);
+    const tie = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.025, 0.02), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
+    g.add(skirt, bib, heart, tie);
+    g.position.set(0, h * 0.56, 0.115);
+    g.rotation.x = -0.05;
+    a.body.add(g);
+  }
+
+  // ------------------------------------------------------------------ thẻ gọi món: phép cộng bằng hình
   private showOrder(o: Order): void {
-    els.ordPic.textContent = o.item.emoji;
-    renderWord(els.ordWord, wordInfo(o.item).word);
-    els.ordQty.textContent = `×${o.n}`;
+    const [p0, p1] = o.parts;
+    const same = p0.item === p1.item;
+    els.order.innerHTML = '';
+    if (same) {
+      const head = document.createElement('div');
+      head.className = 'ord-head';
+      const pic = document.createElement('button');
+      pic.className = 'ord-pic';
+      pic.textContent = p0.item.emoji;
+      pic.addEventListener('click', () => this.repeatOrder());
+      head.append(pic, this.wordButton(p0.item, 'ord-word'));
+      els.order.appendChild(head);
+    }
+    const eq = document.createElement('div');
+    eq.className = 'eq';
+    const group = (p: Part, z: 0 | 1) => {
+      const g = document.createElement('div');
+      g.className = 'grp';
+      g.dataset.zone = String(z);
+      if (!same) g.appendChild(this.wordButton(p.item, 'gword'));
+      const pics = document.createElement('div');
+      pics.className = 'pics';
+      pics.style.gridTemplateColumns = `repeat(${Math.min(p.n, 3)}, auto)`;
+      for (let i = 0; i < p.n; i++) { const e = document.createElement('i'); e.textContent = p.item.emoji; pics.appendChild(e); }
+      const num = document.createElement('b');
+      num.className = 'num';
+      num.textContent = String(p.n);
+      g.append(pics, num);
+      return g;
+    };
+    const op = (t: string) => { const d = document.createElement('div'); d.className = 'op'; d.textContent = t; return d; };
+    const ans = document.createElement('div');
+    ans.className = 'ans';
+    ans.id = 'ord-ans';
+    ans.textContent = '?';
+    eq.append(group(p0, 0), op('+'), group(p1, 1), op('='), ans);
+    els.order.appendChild(eq);
     els.order.hidden = false;
     els.order.classList.remove('pop');
     void els.order.offsetWidth;
     els.order.classList.add('pop');
     sfx('sfx_pop', 0.5);
     els.bell.hidden = false;
-    this.refreshTray();
+    els.bell.classList.remove('ready');
+    this.plusSign.visible = true;
+    this.refreshCard();
+  }
+
+  /** Nút chữ món: chạm = đánh vần GDPT, chữ sáng theo giọng. */
+  private wordButton(item: ItemDef, cls: string): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.className = cls;
+    const w = wordInfo(item);
+    renderWord(b, w.word);
+    b.addEventListener('click', async () => {
+      const all = Array.from(w.word).map((_, i) => i);
+      this.speaking = true;
+      const ok = await speakSequence(w.tokens.map((t) => t.audio), (i) => renderWord(b, w.word, w.tokens[i].lit), 200);
+      this.speaking = false;
+      this.lastTap = performance.now();
+      if (ok) { renderWord(b, w.word, all, true); setTimeout(() => renderWord(b, w.word), 900); }
+    });
+    return b;
   }
 
   private repeatOrder(): void {
     const o = this.order;
-    if (!o || this.phase !== 'order') return;
-    void o.actor.once(o.actor instanceof Human ? 'wave' : 'yes');
-    void this.talk(o.actor, [ck('remind', o.cust), keyQty(o.item, o.n)]);
+    if (!o || !['order', 'sum', 'bell'].includes(this.phase)) return;
+    if (this.phase === 'sum') { void this.talk(null, this.sumKeys(o)); return; }
+    void o.actor.once(o.actor instanceof Cat ? 'yes' : 'wave');
+    void this.talk(o.actor, this.orderKeys(o, 'remind'));
   }
 
-  /** Chạm chữ trên thẻ: đánh vần GDPT, chữ sáng theo giọng. */
-  private async spellOrder(): Promise<void> {
+  private zoneCount(z: 0 | 1): number { return this.tray.filter((t) => t.zone === z).length; }
+  /** ngăn đang cần thêm món (ngăn trái trước) hoặc null khi đủ cả hai */
+  private activeZone(o: Order): 0 | 1 | null {
+    if (this.zoneCount(0) < o.parts[0].n) return 0;
+    if (this.zoneCount(1) < o.parts[1].n) return 1;
+    return null;
+  }
+
+  /** Thẻ: hình sáng dần theo món đã đặt, nhóm đang lấy nhấp nháy viền. */
+  private refreshCard(): void {
     const o = this.order;
     if (!o) return;
-    const w = wordInfo(o.item);
-    const all = Array.from(w.word).map((_, i) => i);
-    this.speaking = true;
-    const ok = await speakSequence(w.tokens.map((t) => t.audio), (i) => renderWord(els.ordWord, w.word, w.tokens[i].lit), 200);
-    this.speaking = false;
-    this.lastTap = performance.now();
-    if (ok) {
-      renderWord(els.ordWord, w.word, all, true);
-      setTimeout(() => { if (this.order === o) renderWord(els.ordWord, w.word); }, 900);
-    }
+    const active = this.phase === 'order' ? this.activeZone(o) : null;
+    els.order.querySelectorAll<HTMLElement>('.grp').forEach((g) => {
+      const z = Number(g.dataset.zone) as 0 | 1;
+      const c = this.zoneCount(z);
+      g.classList.toggle('active', active === z);
+      g.querySelectorAll('.pics i').forEach((e, i) => e.classList.toggle('on', i < c));
+    });
+    const ans = document.getElementById('ord-ans');
+    if (ans && this.phase !== 'bell') ans.textContent = '?';
   }
 
-  /** Cập nhật chấm hình, số trên khay, chuông sẵn sàng. */
-  private refreshTray(): void {
-    const o = this.order;
-    if (!o) return;
-    const match = this.tray.filter((t) => t.item === o.item).length;
-    const wrong = this.tray.length - match;
-    if (this.level.pips) {
-      els.ordPips.innerHTML = '';
-      for (let i = 0; i < Math.max(o.n, match); i++) {
-        const p = document.createElement('i');
-        p.textContent = o.item.emoji;
-        if (i < match) p.className = i < o.n ? 'on' : 'extra';
-        els.ordPips.appendChild(p);
-      }
-    }
-    else {
-      // cấp 2: bỏ chấm hình, chỉ hiện số đã đặt lên khay (bé tự so với ×N)
-      els.ordPips.innerHTML = `<b class="cnt">🧺 ${match}</b>`;
-    }
-    els.bell.classList.toggle('ready', match === o.n && wrong === 0);
+  // ------------------------------------------------------------------ khay 2 ngăn
+  /** Chỗ món thứ i trong ngăn z (ngăn có n món): 3 món hàng trước, món 4–5 lên bậc sau so le. */
+  private zonePos(z: 0 | 1, i: number, n: number): THREE.Vector3 {
+    const cx = SPOT.tray.x + (z === 0 ? -0.78 : 0.78);
+    const front = Math.min(n, 3);
+    if (i < 3) return new THREE.Vector3(cx + (i - (front - 1) / 2) * 0.42, COUNTER_Y + 0.07, SPOT.tray.z + 0.2);
+    const back = n - 3;
+    return new THREE.Vector3(cx + (i - 3 - (back - 1) / 2) * 0.42 + (back % 2 === front % 2 ? 0.21 : 0), COUNTER_Y + TRAY_STEP + 0.06, SPOT.tray.z - 0.3);
   }
-
-  // ------------------------------------------------------------------ kệ → khay
-  /** Chỗ món thứ i trên khay 2 bậc: ≤ 5 món 1 hàng ở bậc trước; món 6..10 lên bậc sau (cao hơn, so le) để không che nhau. */
+  /** Sau khi gộp: ≤ 5 món 1 hàng trước; món 6..10 lên bậc sau so le. */
   private trayPos(i: number, n: number): THREE.Vector3 {
     const back = i >= 5;
     const inRow = back ? n - 5 : Math.min(n, 5);
-    const col = back ? i - 5 : i;
-    let x = (col - (inRow - 1) / 2) * 0.6;
-    if (back && inRow % 2 === 1) x += 0.3; // so le với hàng trước
+    let x = ((back ? i - 5 : i) - (inRow - 1) / 2) * 0.6;
+    if (back && inRow % 2 === 1) x += 0.3;
     return back
       ? new THREE.Vector3(SPOT.tray.x + x, COUNTER_Y + TRAY_STEP + 0.06, SPOT.tray.z - 0.3)
       : new THREE.Vector3(SPOT.tray.x + x, COUNTER_Y + 0.07, SPOT.tray.z + 0.2);
   }
 
-  private layoutTray(): void {
-    const n = this.tray.length;
-    this.tray.forEach((t, i) => {
-      if (t.busy) return;
-      const to = this.trayPos(i, n);
-      const from = t.mesh.position.clone();
-      if (from.distanceTo(to) < 0.01) return;
-      void tween(260, (k) => t.mesh.position.lerpVectors(from, to, k), easeOutQuad);
-    });
+  private layoutZones(): void {
+    for (const z of [0, 1] as const) {
+      const items = this.tray.filter((t) => t.zone === z);
+      items.forEach((t, i) => {
+        if (t.busy) return;
+        const to = this.zonePos(z, i, items.length);
+        const from = t.mesh.position.clone();
+        if (from.distanceTo(to) > 0.01) void tween(260, (k) => t.mesh.position.lerpVectors(from, to, k), easeOutQuad);
+      });
+    }
   }
 
   private tapSlot(i: number): void {
     const o = this.order;
     const slot = this.shop.slots[i];
     if (!o || !slot || this.phase !== 'order') return;
-    if (this.tray.length >= TRAY_MAX) { void this.talk(null, ['tray_full']); wobbleEl(els.bell); return; }
     this.hand = null;
-    sfx('sfx_tap', 0.5);
-    // ô kệ nảy
     const r = slot.root;
     void tween(240, (k) => r.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.12));
-    void this.addToTray(slot.item, slot.from.clone(), o);
+    const inOrder = o.parts.some((p) => p.item === slot.item);
+    if (!inOrder) {
+      // nhầm món: khách lắc nhẹ, nói tên món đó, không bay vào khay
+      o.wrongTaps++;
+      sfx('sfx_soft', 0.5);
+      void o.actor.once(o.actor instanceof Cat ? 'no' : 'think');
+      void this.nhim?.once('think');
+      void this.talk(o.actor, [ck('wrong', o.cust), keyName(slot.item), 'dau_ne']).then(() => { if (o.wrongTaps >= 2) this.updateHint(true); });
+      return;
+    }
+    const z = ([0, 1] as const).find((zz) => o.parts[zz].item === slot.item && this.zoneCount(zz) < o.parts[zz].n);
+    if (z === undefined) { sfx('sfx_soft', 0.4); void this.talk(null, ['du_roi']); return; }
+    sfx('sfx_tap', 0.5);
+    void this.addToTray(slot.item, slot.from.clone(), o, z);
   }
 
-  private async addToTray(item: ItemDef, from: THREE.Vector3, o: Order): Promise<void> {
-    const mesh = await this.shop.itemMesh(item, item.size * 0.9);
-    if (this.order !== o) return;
-    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.5, 0.44), new THREE.MeshBasicMaterial({ visible: false }));
-    hit.position.y = 0.22;
+  private async addToTray(item: ItemDef, from: THREE.Vector3, o: Order, zone: 0 | 1): Promise<void> {
+    const ti: TrayItem = { item, mesh: new THREE.Group(), hit: new THREE.Mesh(), busy: true, zone };
+    this.tray.push(ti); // giữ chỗ ngay (chạm nhanh vẫn đúng số)
+    const count = this.zoneCount(zone);
+    this.refreshCard();
+    const mesh = await this.shop.itemMesh(item, item.size * 0.8);
+    if (this.order !== o || !this.tray.includes(ti)) return;
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.46, 0.4), new THREE.MeshBasicMaterial({ visible: false }));
+    hit.position.y = 0.2;
     mesh.add(hit);
+    ti.mesh = mesh; ti.hit = hit;
     mesh.position.copy(from);
     this.scene.add(mesh);
-    const ti: TrayItem = { item, mesh, hit, busy: true };
-    this.tray.push(ti);
-    const index = this.tray.length - 1;
-    const to = this.trayPos(index, this.tray.length);
-    this.layoutTray();
-    // số đếm tại lúc chạm (chạm nhanh vẫn đếm đúng thứ tự)
-    const count = this.tray.filter((t) => t.item === item).length;
-    const isOrder = item === o.item;
+    const zoneItems = () => this.tray.filter((t) => t.zone === zone);
+    const to = this.zonePos(zone, zoneItems().indexOf(ti), zoneItems().length);
+    this.layoutZones();
     const ctrl = from.clone().lerp(to, 0.5).add(new THREE.Vector3(0, 1.3, 0));
     const curve = new THREE.QuadraticBezierCurve3(from, ctrl, to);
     const spin = (Math.random() - 0.5) * 6;
@@ -652,22 +780,18 @@ export class Game {
     }, easeInOutSine);
     if (!this.tray.includes(ti)) return;
     ti.busy = false;
-    mesh.position.copy(this.trayPos(this.tray.indexOf(ti), this.tray.length));
+    mesh.position.copy(this.zonePos(zone, zoneItems().indexOf(ti), zoneItems().length));
     void tween(260, (k) => { const s = 1 + Math.sin(k * Math.PI) * 0.25; mesh.scale.set(s, 2 - s, s); });
     sfx('sfx_pop', 0.45);
-    this.refreshTray();
-    if (isOrder) {
-      // khách gật gù theo từng món đúng
-      o.actor.talking = true;
-      setTimeout(() => { if (!this.speaking) o.actor.talking = false; }, 380);
-      if (this.level.pips) { const pip = els.ordPips.children[count - 1]; if (pip) bumpEl(pip); }
-      else { const c = els.ordPips.querySelector('.cnt'); if (c) bumpEl(c); }
-      void this.say1(keyNum(Math.min(count, 10)));
-      if (count === o.n && this.tray.length === count) setTimeout(() => { if (this.order === o && this.phase === 'order' && els.bell.classList.contains('ready')) this.hand = { kind: 'el', el: els.bell }; }, 900);
-    } else void this.say1(keyName(item));
+    // khách + Nhím gật gù theo từng món
+    for (const a of [o.actor, this.nhim]) if (a) { a.talking = true; setTimeout(() => { if (!this.speaking) a.talking = false; }, 380); }
+    const pip = els.order.querySelector(`.grp[data-zone="${zone}"] .pics i:nth-child(${count})`);
+    if (pip) bumpEl(pip);
+    void this.say1(keyNum(Math.min(count, 10)));
+    if (this.activeZone(o) === null && this.tray.every((t) => !t.busy) && this.phase === 'order') void this.trayFull(o);
   }
 
-  /** 1 tiếng ngắn (đếm / tên món) – không đè khi khách đang nói câu dài. */
+  /** 1 tiếng ngắn (đếm / tên món) – cắt câu đang nói. */
   private async say1(key: string): Promise<void> {
     if (this.speaking) { stopSpeech(); this.speaking = false; }
     await play(key);
@@ -678,99 +802,142 @@ export class Game {
     if (!o || ti.busy || this.phase !== 'order') return;
     this.hand = null;
     ti.busy = true;
-    const idx = this.tray.indexOf(ti);
-    this.tray.splice(idx, 1);
+    this.tray.splice(this.tray.indexOf(ti), 1);
     sfx('sfx_soft', 0.55);
     const slot = this.shop.slots.find((s) => s.item === ti.item);
     const from = ti.mesh.position.clone();
     const to = slot ? slot.from.clone() : from.clone().add(new THREE.Vector3(0, 0, 1.5));
-    const ctrl = from.clone().lerp(to, 0.5).add(new THREE.Vector3(0, 1.0, 0));
-    const curve = new THREE.QuadraticBezierCurve3(from, ctrl, to);
+    const curve = new THREE.QuadraticBezierCurve3(from, from.clone().lerp(to, 0.5).add(new THREE.Vector3(0, 1.0, 0)), to);
     void tween(420, (k) => { ti.mesh.position.copy(curve.getPoint(k)); ti.mesh.scale.setScalar(1 - k * 0.7); }, easeInOutSine).then(() => ti.mesh.removeFromParent());
-    this.layoutTray();
-    this.refreshTray();
-    const left = this.tray.filter((t) => t.item === ti.item).length;
-    if (ti.item === o.item && left > 0) void this.say1(keyNum(Math.min(left, 10)));
+    this.layoutZones();
+    this.refreshCard();
+    const left = this.zoneCount(ti.zone);
+    if (left > 0) void this.say1(keyNum(left));
   }
 
-  // ------------------------------------------------------------------ giao hàng
+  /** Đủ 2 ngăn: ngăn phải trượt sang gộp với ngăn trái → hỏi tổng. */
+  private async trayFull(o: Order): Promise<void> {
+    const token = this.run;
+    this.phase = 'busy';
+    this.hand = null;
+    this.refreshCard();
+    await wait(500);
+    if (token !== this.run || this.order !== o) return;
+    sfx('sfx_win', 0.35);
+    chime('C6:0.4 E6:0.4 G6:0.8', 260, 0.16);
+    this.plusSign.visible = false;
+    // gộp: ngăn trái rồi ngăn phải, xếp lại liền một khay
+    const ordered = [...this.tray.filter((t) => t.zone === 0), ...this.tray.filter((t) => t.zone === 1)];
+    this.tray = ordered;
+    await Promise.all(ordered.map((t, i) => {
+      const from = t.mesh.position.clone();
+      const to = this.trayPos(i, ordered.length);
+      return tween(650, (k) => { t.mesh.position.lerpVectors(from, to, k); t.mesh.position.y += Math.sin(k * Math.PI) * 0.15; }, easeInOutSine);
+    }));
+    if (token !== this.run || this.order !== o) return;
+    const sum = o.parts[0].n + o.parts[1].n;
+    this.phase = 'sum';
+    showPanel(true);
+    if (this.auto) void this.autoAnswer(token, String(sum), o.index === 0);
+    await this.pickLoop(token, this.numberOptions(sum), String(sum), this.sumKeys(o), () => this.countUp(token, this.tray.map((t) => t.mesh)));
+    if (token !== this.run || this.order !== o) return;
+    showPanel(false);
+    const ans = document.getElementById('ord-ans');
+    if (ans) { ans.textContent = String(sum); ans.classList.add('done'); bumpEl(ans); }
+    this.phase = 'bell';
+    els.bell.classList.add('ready');
+    void this.nhim?.once('cheer');
+    void o.actor.once(o.actor instanceof Cat ? 'yes' : 'cheer');
+    await this.talk(null, ['right', keyNum(sum), 'bell_hint']);
+    if (this.auto && token === this.run && this.phase === 'bell') { await wait(700); this.onBell(); }
+  }
+
+  /** 3 nút số quanh đáp án (1..10). */
+  private numberOptions(n: number): { label: string; value: string; audio: string }[] {
+    const opts = new Set<number>([n]);
+    while (opts.size < 3) { const d = n + Math.floor(Math.random() * 5) - 2; if (d >= 1 && d <= 10) opts.add(d); }
+    return shuffle([...opts]).map((v) => ({ label: String(v), value: String(v), audio: keyNum(v) }));
+  }
+
+  /** Gợi ý khi chọn sai tổng: từng món / xu nảy lên lần lượt, đọc 1..N. */
+  private async countUp(token: number, objs: THREE.Object3D[]): Promise<void> {
+    await this.talk(null, ['count_hint']);
+    for (let i = 0; i < objs.length; i++) {
+      if (token !== this.run) return;
+      const m = objs[i];
+      const y0 = m.position.y;
+      void tween(380, (k) => { m.position.y = y0 + Math.sin(k * Math.PI) * 0.28; m.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.25); });
+      this.magic.twinkle(m.position.clone().add(new THREE.Vector3(0, 0.3, 0)), 0xffd36e, 4, 0.2, 0.18);
+      this.speaking = true;
+      await play(keyNum(Math.min(i + 1, 10)));
+      await wait(120);
+    }
+    this.speaking = false;
+  }
+
+  // ------------------------------------------------------------------ chuông
   onBell(): void {
     const o = this.order;
-    if (!o || this.phase !== 'order') return;
-    if (this.tray.some((t) => t.busy)) return;
+    if (!o) return;
     bumpEl(els.bell, 'ring');
     chime('G6:0.4 E6:0.6', 240, 0.22);
     this.hand = null;
-    const match = this.tray.filter((t) => t.item === o.item).length;
-    const wrongs = this.tray.filter((t) => t.item !== o.item);
-    if (!this.tray.length) { void this.talk(null, ['bell_empty']); this.updateHint(false); return; }
-    if (!wrongs.length && match === o.n) {
+    if (this.phase === 'bell') {
       this.phase = 'check';
+      els.bell.classList.remove('ready');
       this.bellResolve?.();
       this.bellResolve = null;
       return;
     }
+    if (this.phase === 'sum') { void this.talk(null, ['pick_sum', ...this.sumKeys(o)]); return; }
+    if (this.phase !== 'order') return;
     o.tries++;
-    this.phase = 'check';
-    void (async () => {
-      const a = o.actor;
-      // khách nghiêng đầu nhìn khay rồi nhắc nhẹ (không phạt)
-      a.setLook(0.25);
-      if (a instanceof Cat) void a.once('no');
-      let keys: string[];
-      if (wrongs.length) {
-        wrongs.forEach((w) => void tween(420, (k) => { w.mesh.rotation.z = Math.sin(k * Math.PI * 4) * 0.35 * (1 - k); }));
-        keys = [ck('wrong', o.cust), keyName(wrongs[0].item), 'wrong_end'];
-      } else if (match < o.n) keys = [ck('more', o.cust), keyQty(o.item, o.n - match), 'more_end'];
-      else keys = [ck('over', o.cust), keyQty(o.item, o.n), 'over_end'];
-      await this.talk(a, keys);
-      a.setLook(0);
-      if (this.order !== o) return;
-      this.phase = 'order';
+    if (!this.tray.length) { void this.talk(null, ['bell_empty']); this.updateHint(o.tries >= 2); return; }
+    const z = this.activeZone(o);
+    if (z === null) return;
+    o.actor.setLook(0.25);
+    void o.actor.once(o.actor instanceof Cat ? 'no' : 'think');
+    void this.talk(o.actor, [ck('more', o.cust), keyQty(o.parts[z].item, o.parts[z].n - this.zoneCount(z)), 'more_end']).then(() => {
+      o.actor.setLook(0);
       this.updateHint(o.tries >= 2);
-    })();
+    });
   }
 
-  /** Tay chỉ vào việc nên làm tiếp. force = luôn hiện (đã nhắc ≥ 2 lần hoặc ngồi im). */
+  /** Tay chỉ vào việc nên làm tiếp. */
   private updateHint(force: boolean): void {
     const o = this.order;
-    if (!o || !force) { if (!force) this.hand = null; if (!force) return; }
-    if (!o) return;
-    const match = this.tray.filter((t) => t.item === o.item).length;
-    const wrong = this.tray.find((t) => t.item !== o.item);
-    if (this.phase === 'coins') {
-      const c = this.coins.find((x) => !x.counted);
-      this.hand = c ? { kind: '3d', at: c.mesh.position.clone().add(new THREE.Vector3(0, 0.1, 0)) } : null;
-      return;
-    }
-    if (wrong) this.hand = { kind: '3d', at: wrong.mesh.position.clone().add(new THREE.Vector3(0, 0.25, 0)) };
-    else if (match < o.n) {
-      const slot = this.shop.slots.find((s) => s.item === o.item);
-      this.hand = slot ? { kind: '3d', at: slot.from.clone().add(new THREE.Vector3(0, 0.15, 0)) } : null;
-    } else if (match > o.n) {
-      const last = [...this.tray].reverse().find((t) => t.item === o.item);
-      this.hand = last ? { kind: '3d', at: last.mesh.position.clone().add(new THREE.Vector3(0, 0.25, 0)) } : null;
-    } else this.hand = { kind: 'el', el: els.bell };
+    if (!o || !force) { this.hand = null; return; }
+    if (this.phase === 'bell') { this.hand = { kind: 'el', el: els.bell }; return; }
+    if (this.phase !== 'order') { this.hand = null; return; }
+    const z = this.activeZone(o);
+    if (z === null) { this.hand = null; return; }
+    const slot = this.shop.slots.find((s) => s.item === o.parts[z].item);
+    this.hand = slot ? { kind: '3d', at: slot.from.clone().add(new THREE.Vector3(0, 0.15, 0)) } : null;
   }
 
-  // ------------------------------------------------------------------ thành công
+  // ------------------------------------------------------------------ giao hàng xong
   private async success(token: number, o: Order): Promise<void> {
     this.phase = 'busy';
     this.hand = null;
-    els.bell.classList.remove('ready');
     els.bell.hidden = true;
+    const a = o.actor;
+    a.setLook(0);
+    const [p0, p1] = o.parts;
+    const sum = p0.n + p1.n;
+    // khách nói cả câu: "Ba cộng hai bằng năm!"
+    await this.talk(a, [keyNum(p0.n), 'cong', keyNum(p1.n), 'bang', keyNum(sum)]);
+    this.alive(token);
     sfx('sfx_win', 0.55);
     chime('C6:0.5 E6:0.5 G6:0.5 C7:1.5', 240, 0.2);
     confetti(50);
-    const a = o.actor;
-    a.setLook(0);
+    void this.nhim?.once('cheer');
+    void this.nhim?.hop(2, 0.22);
     // món bay vào tay khách
     const hands = a.root.position.clone().add(new THREE.Vector3(0, o.cust.kind === 'cat' ? 0.35 : o.cust.height * 0.5, 0.35));
-    void (a instanceof Human ? a.once('interact') : a.once('yes'));
+    void a.once(a instanceof Cat ? 'yes' : 'interact');
     await Promise.all(this.tray.map((t, i) => new Promise<void>((res) => setTimeout(() => {
       const from = t.mesh.position.clone();
-      const ctrl = from.clone().lerp(hands, 0.5).add(new THREE.Vector3(0, 0.8, 0));
-      const curve = new THREE.QuadraticBezierCurve3(from, ctrl, hands);
+      const curve = new THREE.QuadraticBezierCurve3(from, from.clone().lerp(hands, 0.5).add(new THREE.Vector3(0, 0.8, 0)), hands);
       void tween(450, (k) => { t.mesh.position.copy(curve.getPoint(k)); t.mesh.scale.setScalar(1 - k * 0.8); }, easeInOutSine).then(() => {
         t.mesh.removeFromParent();
         this.magic.twinkle(hands, 0xffd36e, 4, 0.3, 0.2);
@@ -780,7 +947,7 @@ export class Game {
     this.tray = [];
     els.order.hidden = true;
     this.alive(token);
-    if (this.level.pay === 'count') await this.pay(token, o);
+    if (this.level.pay === 'add') await this.pay(token, o);
     if (this.level.fillAt.includes(o.index)) await this.fillBoard(token, o);
     await this.happy(token, o);
     await this.leave(token, o);
@@ -793,11 +960,9 @@ export class Game {
     this.magic.burst(head, 40, 0xff6fa5, 2.6, 0.32, 1.1, -2);
     this.magic.burst(head, 24, 0xffd36e, 2.2, 0.26, 1.0, -2);
     this.floatHearts(head);
-    const jump = a instanceof Human ? Promise.all([a.once('wave'), a.hop(2, 0.32)]) : Promise.all([a.once('dance'), a.hop(2, 0.25)]);
     if (a instanceof Cat) sfx('cry_cat', 0.8);
-    await Promise.all([jump, this.talk(a, [ck(Math.random() < 0.5 ? 'thanks1' : 'thanks2', o.cust)])]);
+    await Promise.all([a.once(a instanceof Cat ? 'dance' : 'cheer'), a.hop(2, 0.3), this.talk(a, [ck(Math.random() < 0.5 ? 'thanks1' : 'thanks2', o.cust)])]);
     this.alive(token);
-    // ⭐ bay lên HUD
     const s = this.toScreen(head);
     await flyStar(s.x, s.y);
     this.progress.stars++;
@@ -807,7 +972,7 @@ export class Game {
     chime('E6:0.5 A6:1', 260, 0.18);
     saveProgress(this.progress);
     // thỉnh thoảng người nhà cổ vũ (ảnh / emoji + giọng)
-    if (o.index === 1 || o.index === 3) { await familyCheer(); this.alive(token); }
+    if (o.index === 1 || o.index === 3) { await familyCheer(o.cust.family); this.alive(token); }
   }
 
   private floatHearts(at: THREE.Vector3): void {
@@ -829,8 +994,9 @@ export class Game {
     this.phase = 'busy';
     this.order = null;
     this.repeatFn = null;
-    await Promise.all([a instanceof Human ? a.once('wave') : Promise.resolve(), this.talk(a, [ck('bye', o.cust)])]);
+    await Promise.all([a instanceof Cat ? Promise.resolve() : a.once('wave'), this.talk(a, [ck('bye', o.cust)])]);
     this.alive(token);
+    void this.nhim?.once('wave');
     this.renderDayPips(this.dayIndex + 1);
     if (a instanceof Cat) {
       // mèo nhảy xuống, về chỗ (Mun: lên bậu cửa ngủ tiếp)
@@ -850,7 +1016,7 @@ export class Game {
       return;
     }
     // người: đi ra cửa, vẫy ở cửa rồi khuất
-    const out = (async () => {
+    void (async () => {
       await a.walkTo([new THREE.Vector3(-1.2, 0, -2.0), SPOT.inside.clone()], 1.25);
       void this.shop.openDoor(true);
       this.doorBell();
@@ -860,106 +1026,117 @@ export class Game {
       void this.shop.openDoor(false);
       this.removeActor(a);
     })();
-    // khách sau tới quầy ngay khi khách này rời quầy (không chờ ra khỏi cửa)
+    // khách sau tới quầy ngay khi khách này rời quầy
     await wait(1400);
-    void out;
   }
 
-  // ------------------------------------------------------------------ cấp 2: đếm xu
+  // ------------------------------------------------------------------ cấp 2: trả xu = phép cộng (giá túi 1 + giá túi 2)
   private async pay(token: number, o: Order): Promise<void> {
     const a = o.actor;
-    void (a instanceof Human ? a.once('interact') : a.once('yes'));
+    this.phase = 'pay';
+    void a.once(a instanceof Cat ? 'yes' : 'interact');
     await this.talk(a, [ck('pay', o.cust)]);
     this.alive(token);
-    // xu ngôi sao rơi xuống khay, đứng thẳng quay mặt ra Nhím
-    const n = o.n;
+    const [p0, p1] = o.price;
     const src = a.root.position.clone().add(new THREE.Vector3(0, o.cust.kind === 'cat' ? 0.4 : o.cust.height * 0.55, 0.4));
     this.coins = [];
-    for (let i = 0; i < n; i++) {
-      const c = this.makeCoin();
-      const to = this.trayPos(i, n).add(new THREE.Vector3(0, 0.22, 0));
-      c.mesh.position.copy(src);
-      this.scene.add(c.mesh);
-      this.coins.push(c);
-      const ctrl = src.clone().lerp(to, 0.5).add(new THREE.Vector3(0, 0.9, 0));
-      const curve = new THREE.QuadraticBezierCurve3(src.clone(), ctrl, to);
-      void tween(480, (k) => { c.mesh.position.copy(curve.getPoint(k)); c.mesh.rotation.y = (1 - k) * 6; }, easeInOutSine).then(() => chime('A6:0.3', 300, 0.1));
-      await wait(130);
+    this.plusSign.visible = true;
+    for (const [z, n] of [[0, p0], [1, p1]] as const) {
+      for (let i = 0; i < n; i++) {
+        const c: Coin = { mesh: this.makeCoin(), zone: z };
+        const to = this.zonePos(z, i, n).add(new THREE.Vector3(0, 0.22, 0));
+        c.mesh.position.copy(src);
+        this.scene.add(c.mesh);
+        this.coins.push(c);
+        const curve = new THREE.QuadraticBezierCurve3(src.clone(), src.clone().lerp(to, 0.5).add(new THREE.Vector3(0, 0.9, 0)), to);
+        void tween(480, (k) => { c.mesh.position.copy(curve.getPoint(k)); c.mesh.rotation.y = (1 - k) * 6; }, easeInOutSine).then(() => chime('A6:0.3', 300, 0.1));
+        await wait(130);
+      }
+      await wait(250);
     }
-    await wait(450);
+    await wait(400);
     this.alive(token);
-    this.phase = 'coins';
-    this.repeatFn = () => void this.talk(null, ['coin_intro']);
-    this.lastTap = performance.now();
-    await this.talk(null, [keyEach(o.item.cls), 'coin_intro']);
-    this.alive(token);
-    if (this.auto) void this.autoCoins(token);
-    await new Promise<void>((res) => { this.coinsDone = res; if (this.coins.every((c) => c.counted)) res(); });
-    this.coinsDone = null;
-    this.alive(token);
-    // chọn số xu
-    this.phase = 'choose';
-    this.hand = null;
-    const opts = new Set<number>([n]);
-    while (opts.size < 3) { const d = n + Math.floor(Math.random() * 5) - 2; if (d >= 1 && d <= 10) opts.add(d); }
+    // thẻ giá trên bong bóng khách: [🍩 bánh ⭐⭐ 2] + [🍦 kem ⭐⭐⭐ 3] = ? xu
+    const [i0, i1] = [o.parts[0].item, o.parts[1].item];
+    this.showPriceCard(o);
     showPanel(true);
-    els.panelEmoji.textContent = '⭐';
-    els.panelEmoji.hidden = false;
-    els.panelWord.textContent = '= ?';
-    els.panelWord.classList.remove('whole');
-    els.panelWord.hidden = false;
-    const list = shuffle([...opts]).map((v) => ({ label: String(v), value: String(v), audio: keyNum(v) }));
-    await this.pickLoop(token, list, String(n), ['coin_ask']);
+    const sum = p0 + p1;
+    if (this.auto) void this.autoAnswer(token, String(sum), o.index === 0);
+    await this.pickLoop(token, this.numberOptions(sum), String(sum), [keyWord(i0), keyXu(p0), 'cong', keyWord(i1), keyXu(p1), 'bang_may_xu'], () => this.countUp(token, this.coins.map((c) => c.mesh)));
     this.alive(token);
-    await this.talk(null, ['right', keyXu(n)]);
     showPanel(false);
+    const ans = document.getElementById('ord-ans');
+    if (ans) { ans.textContent = String(sum); ans.classList.add('done'); bumpEl(ans); }
+    this.plusSign.visible = false;
+    setTimeout(() => { if (this.order === o) els.order.hidden = true; }, 1600);
+    // xu bay vào hũ, nằm chồng lên nhau
+    const coins = this.coins;
+    this.coins = [];
+    void this.talk(null, ['right', keyXu(sum)]);
+    for (const [k, c] of coins.entries()) {
+      const from = c.mesh.position.clone();
+      const jarTop = SPOT.jar.clone().add(new THREE.Vector3(0, 0.6, 0));
+      const inJar = SPOT.jar.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.14, 0.07 + Math.min(this.jarCount, 11) * 0.035, (Math.random() - 0.5) * 0.14));
+      this.jarCount++;
+      const curve = new THREE.QuadraticBezierCurve3(from, from.clone().lerp(jarTop, 0.5).add(new THREE.Vector3(0, 0.9, 0)), jarTop);
+      chime(['C6', 'D6', 'E6', 'F6', 'G6', 'A6', 'B6', 'C7', 'D7', 'E7'][Math.min(k, 9)] + ':0.5', 300, 0.14);
+      void tween(420, (t) => { c.mesh.position.copy(curve.getPoint(t)); c.mesh.rotation.y = t * 8; }, easeInOutSine).then(() => {
+        const top = c.mesh.position.clone();
+        return tween(220, (t) => { c.mesh.position.lerpVectors(top, inJar, t); c.mesh.rotation.x = -Math.PI / 2 * t; c.mesh.scale.setScalar(1 - t * 0.35); }, easeOutQuad);
+      }).then(() => { c.mesh.userData.jar = true; this.magic.twinkle(jarTop, 0xffd36e, 4, 0.3, 0.18); });
+      await wait(160);
+    }
+    await wait(900);
     this.alive(token);
   }
 
-  private coinsDone: (() => void) | null = null;
-  /** nút đáp án đang hiện (tự chơi bấm hộ) */
-  private buttons: HTMLButtonElement[] = [];
+  /** Bong bóng giá (cấp 2): mỗi túi = hình món + chữ + xu ⭐ theo giá; "= ? xu". */
+  private showPriceCard(o: Order): void {
+    els.order.innerHTML = '';
+    const eq = document.createElement('div');
+    eq.className = 'eq';
+    const group = (z: 0 | 1) => {
+      const it = o.parts[z].item, n = o.price[z];
+      const g = document.createElement('div');
+      g.className = 'grp';
+      const pic = document.createElement('div');
+      pic.className = 'gpic';
+      pic.textContent = it.emoji;
+      const pics = document.createElement('div');
+      pics.className = 'pics';
+      pics.style.gridTemplateColumns = `repeat(${Math.min(n, 3)}, auto)`;
+      for (let i = 0; i < n; i++) { const e = document.createElement('i'); e.className = 'on'; e.textContent = '⭐'; pics.appendChild(e); }
+      const num = document.createElement('b');
+      num.className = 'num';
+      num.textContent = `${n} xu`;
+      g.append(pic, this.wordButton(it, 'gword'), pics, num);
+      return g;
+    };
+    const op = (t: string) => { const d = document.createElement('div'); d.className = 'op'; d.textContent = t; return d; };
+    const ans = document.createElement('div');
+    ans.className = 'ans';
+    ans.id = 'ord-ans';
+    ans.textContent = '?';
+    eq.append(group(0), op('+'), group(1), op('='), ans);
+    els.order.appendChild(eq);
+    els.order.hidden = false;
+    els.order.classList.remove('pop');
+    void els.order.offsetWidth;
+    els.order.classList.add('pop');
+  }
 
-  private makeCoin(): Coin {
+  private makeCoin(): THREE.Group {
     const g = new THREE.Group();
-    const geo = new THREE.CylinderGeometry(0.21, 0.21, 0.05, 32);
+    const geo = new THREE.CylinderGeometry(0.19, 0.19, 0.05, 32);
     geo.rotateX(Math.PI / 2);
-    const gold = new THREE.MeshStandardMaterial({ color: 0xffc233, roughness: 0.35, metalness: 0, emissive: 0x7a4a00, emissiveIntensity: 0.25 });
-    const body = new THREE.Mesh(geo, gold);
+    const body = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xffc233, roughness: 0.35, metalness: 0, emissive: 0x7a4a00, emissiveIntensity: 0.25 }));
     body.castShadow = true;
-    const face = new THREE.Mesh(new THREE.CircleGeometry(0.17, 24), new THREE.MeshBasicMaterial({ map: emojiTexture('⭐'), transparent: true }));
+    const face = new THREE.Mesh(new THREE.CircleGeometry(0.155, 24), new THREE.MeshBasicMaterial({ map: emojiTexture('⭐'), transparent: true }));
     face.position.z = 0.027;
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.018, 8, 32), new THREE.MeshStandardMaterial({ color: 0xffe08a, roughness: 0.3 }));
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.016, 8, 32), new THREE.MeshStandardMaterial({ color: 0xffe08a, roughness: 0.3 }));
     rim.position.z = 0.02;
     g.add(body, face, rim);
-    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.62, 0.4), new THREE.MeshBasicMaterial({ visible: false }));
-    g.add(hit);
-    return { mesh: g, hit, counted: false };
-  }
-
-  private async tapCoin(c: Coin): Promise<void> {
-    if (c.counted || this.phase !== 'coins') return;
-    c.counted = true;
-    this.hand = null;
-    const k = this.coins.filter((x) => x.counted).length;
-    sfx('sfx_tap', 0.4);
-    chime(['C6', 'D6', 'E6', 'F6', 'G6', 'A6', 'B6', 'C7', 'D7', 'E7'][Math.min(k, 10) - 1] + ':0.6', 300, 0.16);
-    void play(keyNum(Math.min(k, 10)));
-    const from = c.mesh.position.clone();
-    const jar = SPOT.jar.clone().add(new THREE.Vector3(0, 0.6, 0));
-    const ctrl = from.clone().lerp(jar, 0.5).add(new THREE.Vector3(0, 1.0, 0));
-    const curve = new THREE.QuadraticBezierCurve3(from, ctrl, jar);
-    await tween(460, (t) => { c.mesh.position.copy(curve.getPoint(t)); c.mesh.rotation.y = t * 8; }, easeInOutSine);
-    // rơi vào hũ, nằm chồng lên nhau
-    const slotY = 0.07 + Math.min(this.jarCount, 11) * 0.035;
-    this.jarCount++;
-    const inJar = SPOT.jar.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.14, slotY, (Math.random() - 0.5) * 0.14));
-    const top = c.mesh.position.clone();
-    await tween(240, (t) => { c.mesh.position.lerpVectors(top, inJar, t); c.mesh.rotation.x = -Math.PI / 2 * t; c.mesh.scale.setScalar(1 - t * 0.35); }, easeOutQuad);
-    c.mesh.userData.jar = true;
-    this.magic.twinkle(jar, 0xffd36e, 5, 0.3, 0.18);
-    bumpEl(els.stars);
-    if (this.coins.every((x) => x.counted)) { this.coins = []; setTimeout(() => this.coinsDone?.(), 350); }
+    return g;
   }
 
   private clearJar(): void {
@@ -968,14 +1145,17 @@ export class Game {
     drop.forEach((o) => o.removeFromParent());
   }
 
-  /** Chọn đáp án: sai lần 1 bỏ nút + nhắc, sai lần 2 nút đúng nhấp nháy. Ngồi im 10 s: hỏi lại. */
-  private pickLoop(token: number, items: { label: string; value: string; audio?: string }[], target: string, askKeys: string[]): Promise<void> {
+  /**
+   * Chọn đáp án: sai lần 1 bỏ nút + đọc số vừa chọn + gợi ý (đếm từng vật) + hỏi lại;
+   * sai lần 2 nút đúng nhấp nháy + gợi ý. Ngồi im 10 s: hỏi lại.
+   */
+  private pickLoop(token: number, items: { label: string; value: string; audio?: string }[], target: string, askKeys: string[], hint?: () => Promise<void>): Promise<void> {
     let wrong = 0, busy = false, solved = false;
     const ask = () => void this.talk(null, askKeys);
     this.repeatFn = ask;
     return new Promise((resolve) => {
       let idle = 0;
-      const kick = () => { clearTimeout(idle); idle = window.setTimeout(() => { if (solved || token !== this.run) return; ask(); buttons.forEach((b) => { if (!b.classList.contains('gone')) wobbleEl(b); }); kick(); }, IDLE_MS); };
+      const kick = () => { clearTimeout(idle); idle = window.setTimeout(() => { if (solved || token !== this.run) return; if (!busy) { ask(); buttons.forEach((b) => { if (!b.classList.contains('gone')) wobbleEl(b); }); } kick(); }, IDLE_MS); };
       const buttons = showOptions(items, async (value, btn) => {
         if (solved || token !== this.run) return;
         kick();
@@ -986,15 +1166,16 @@ export class Game {
           sfx('sfx_soft', 0.5);
           wobbleEl(btn);
           btn.classList.add('gone');
+          void this.nhim?.once('think');
           const said = items.find((it) => it.value === value)?.audio;
-          if (wrong === 1) await this.talk(null, [...(said ? [said] : []), 'retry', ...askKeys]);
-          else {
-            buttons.find((b) => b.dataset.value === target)?.classList.add('hint');
-            await this.talk(null, [...(said ? [said] : []), 'hint_last']);
-          }
+          await this.talk(null, [...(said ? [said] : []), wrong === 1 ? 'retry' : 'hint_last']);
+          if (wrong >= 2) buttons.find((b) => b.dataset.value === target)?.classList.add('hint');
+          if (hint && token === this.run) await hint();
+          if (wrong === 1 && token === this.run) await this.talk(null, askKeys);
           busy = false;
           return;
         }
+        if (busy) return;
         solved = true;
         clearTimeout(idle);
         stopSpeech();
@@ -1013,29 +1194,26 @@ export class Game {
   // ------------------------------------------------------------------ cấp 2: điền chữ thiếu trên bảng giá (A2)
   private async fillBoard(token: number, o: Order): Promise<void> {
     this.phase = 'fill';
-    const w = wordInfo(o.item);
+    const item = o.parts[0].item;
+    const w = wordInfo(item);
     const chars = Array.from(w.word);
-    const correct = chars[o.item.fill.index];
-    // bảng phấn 3D cũng mất chữ
-    this.shop.drawBoard({ emoji: o.item.emoji, word: chars.map((c, i) => (i === o.item.fill.index ? '_' : c)).join('') });
-    showPanel(true, true);
-    els.panelEmoji.textContent = o.item.emoji;
+    const correct = chars[item.fill.index];
+    this.shop.drawBoard({ emoji: item.emoji, word: chars.map((c, i) => (i === item.fill.index ? '_' : c)).join('') });
+    showPanel(true, true, true);
+    els.panelEmoji.textContent = item.emoji;
     els.panelEmoji.hidden = false;
-    renderWord(els.panelWord, w.word, [], false, o.item.fill.index);
+    renderWord(els.panelWord, w.word, [], false, item.fill.index);
     els.panelWord.hidden = false;
-    els.panelPrice.textContent = '1 ⭐';
-    els.panelPrice.hidden = false;
-    const letters = shuffle([correct, ...o.item.fill.distractors]);
+    const letters = shuffle([correct, ...item.fill.distractors]);
     const items = letters.map((l) => ({ label: l, value: l, audio: w.fillLetterKeys[l] ?? letterAudio(l)?.[0] }));
     await this.talk(null, ['fill_intro']);
     this.alive(token);
-    if (this.auto) void this.autoPick(token, correct);
+    if (this.auto) void this.autoAnswer(token, correct, true);
     await this.pickLoop(token, items, correct, [w.nameKey, 'fill_ask']);
     this.alive(token);
     els.options.innerHTML = '';
-    // đánh vần cả từ, chữ sáng theo giọng
-    renderWord(els.panelWord, w.word, [o.item.fill.index]);
-    this.shop.drawBoard({ emoji: o.item.emoji, word: w.word });
+    renderWord(els.panelWord, w.word, [item.fill.index]);
+    this.shop.drawBoard({ emoji: item.emoji, word: w.word });
     this.magic.burst(this.shop.board.position.clone().add(new THREE.Vector3(0, 0, 0.3)), 30, 0xffd36e, 2, 0.26, 0.9, -1.5);
     await this.talk(null, ['right']);
     this.speaking = true;
@@ -1047,7 +1225,6 @@ export class Game {
     this.alive(token);
   }
 
-  // ------------------------------------------------------------------ cuối ngày
   private async endDay(token: number): Promise<void> {
     this.phase = 'end';
     this.renderDayPips(this.visits.length);
@@ -1113,9 +1290,8 @@ export class Game {
     stopSpeech();
     finishAllTweens();
     // nhả các chờ đang treo: luồng cũ chạy tiếp tới alive() rồi thoát (token đã đổi)
-    const pending = [this.bellResolve, this.coinsDone];
+    const pending = [this.bellResolve];
     this.bellResolve = null;
-    this.coinsDone = null;
     pending.forEach((r) => r?.());
     this.phase = 'menu';
     this.order = null;
@@ -1125,7 +1301,8 @@ export class Game {
     this.tray = [];
     for (const c of this.coins) c.mesh.removeFromParent();
     this.coins = [];
-    for (const a of [...this.actors]) if (a instanceof Human) this.removeActor(a);
+    for (const a of [...this.actors]) if (!(a instanceof Cat) && a !== this.nhim) this.removeActor(a);
+    if (this.plusSign) this.plusSign.visible = false;
     this.waiting = null;
     this.waitingFor = null;
     for (const cat of [this.mun, this.rom]) {
@@ -1147,43 +1324,31 @@ export class Game {
   // ------------------------------------------------------------------ tự chơi (?auto=1): soát luồng / chụp màn
   private async autoOrder(token: number, o: Order): Promise<void> {
     const slotOf = (it: ItemDef) => this.shop.slots.findIndex((s) => s.item === it);
-    const step = 650;
-    const tapN = async (it: ItemDef, n: number) => { for (let i = 0; i < n; i++) { await wait(step); if (token !== this.run || this.order !== o) return; this.tapSlot(slotOf(it)); } };
-    const ring = async () => { await wait(900); this.onBell(); while (this.phase === 'check' && this.order === o) await wait(200); };
+    const live = () => token === this.run && this.order === o && this.phase === 'order';
+    const step = async () => { await wait(650); while (this.speaking && live()) await wait(150); return live(); };
     if (o.index === 0) {
-      // khách đầu: thử đủ đường sai (nhầm món → thiếu → dư) để soát lời nhắc
-      const other = this.shop.slots.find((s) => s.item !== o.item)!.item;
-      await tapN(other, 1); await ring();
-      await wait(600); const w = this.tray.find((t) => t.item !== o.item); if (w) this.removeTrayItem(w);
-      await tapN(o.item, Math.max(0, o.n - 1)); await ring();
-      await tapN(o.item, 2); await ring();
-      await wait(600); const last = [...this.tray].reverse()[0]; if (last) this.removeTrayItem(last);
-      await wait(600);
-    } else await tapN(o.item, o.n);
-    if (token === this.run && this.order === o) await ring();
-  }
-  private async autoCoins(token: number): Promise<void> {
-    while (token === this.run && this.phase === 'coins') {
-      await wait(700);
-      const c = this.coins.find((x) => !x.counted);
-      if (!c) break;
-      void this.tapCoin(c);
+      // khách đầu: thử chạm nhầm món + bấm chuông sớm để soát lời nhắc
+      const other = this.shop.slots.find((s) => !o.parts.some((p) => p.item === s.item));
+      if (other && await step()) this.tapSlot(this.shop.slots.indexOf(other));
+      await wait(2500);
     }
-    if (token !== this.run) return;
-    await wait(1600);
-    const btns = this.buttons;
-    const target = String(this.order?.n ?? 0);
-    const wrong = btns.find((b) => b.dataset.value !== target);
-    if (this.order?.index === 0 && wrong) { wrong.click(); await wait(3500); }
-    btns.find((b) => b.dataset.value === target)?.click();
+    for (const z of [0, 1] as const) {
+      for (let i = 0; i < o.parts[z].n; i++) { if (!await step()) return; this.tapSlot(slotOf(o.parts[z].item)); }
+      if (o.index === 0 && z === 0) { await wait(900); if (live()) { this.onBell(); await wait(4500); } }
+    }
   }
-  private async autoPick(token: number, correct: string): Promise<void> {
-    await wait(2500);
+  /** bấm đáp án (lần đầu chọn sai 1 lần nếu wrongFirst) */
+  private async autoAnswer(token: number, correct: string, wrongFirst: boolean): Promise<void> {
+    await wait(2600);
+    while (this.speaking && token === this.run) await wait(200);
     if (token !== this.run) return;
-    const btns = this.buttons;
-    const wrong = btns.find((b) => b.dataset.value !== correct);
-    if (wrong) { wrong.click(); await wait(3500); }
-    btns.find((b) => b.dataset.value === correct)?.click();
+    const wrong = this.buttons.find((b) => b.dataset.value !== correct && !b.classList.contains('gone'));
+    if (wrongFirst && wrong) {
+      wrong.click();
+      await wait(1500);
+      while (this.speaking && token === this.run) await wait(200);
+      await wait(600);
+    }
+    if (token === this.run) this.buttons.find((b) => b.dataset.value === correct)?.click();
   }
 }
-

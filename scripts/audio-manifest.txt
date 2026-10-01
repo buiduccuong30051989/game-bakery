@@ -2,21 +2,26 @@
 # Câu sinh từ dữ liệu (tên món, "ba quả táo", câu từng khách, token đánh vần): scripts/audio/_gen.txt (TỰ SINH).
 # Thay giọng thật: ghi đè public/audio/<key>.m4a cùng tên.
 # --- người dẫn
-intro_first|Chào Nhím! Hôm nay Nhím làm chủ tiệm bánh nhé! Khách vào, Nhím nghe khách muốn mua gì, chạm vào món trên kệ để bỏ vào khay, rồi bấm chuông để giao hàng nhé!
+intro_first|Chào Nhím! Hôm nay Nhím làm chủ tiệm bánh nhé! Khách gọi hai phần, Nhím chạm vào món trên kệ cho đủ, rồi cộng lại xem tất cả là mấy, chọn số đúng và bấm chuông giao hàng nhé!
+intro_l2|Cấp hai nè! Khách mua hai món khác nhau, rồi trả tiền bằng xu ngôi sao. Nhím cộng giúp nhé!
+level1_name|Cấp một. Phép cộng đến năm.
+level2_name|Cấp hai. Phép cộng đến mười.
+va|và
+nua|nữa.
+cong|cộng
+bang|bằng
+bang_may|bằng mấy?
+bang_may_xu|bằng mấy xu?
+du_roi|Đủ rồi nè!
+dau_ne|đâu nè.
+count_hint|Mình cùng đếm nhé!
+pick_sum|Nhím chọn số đúng nhé!
 intro_day|Tiệm bánh của Nhím mở cửa rồi! Khách sắp đến kìa!
-intro_l2|Cấp hai nè! Khách trả tiền bằng xu ngôi sao. Nhím đếm xu giúp nhé!
-level1_name|Cấp một. Đếm món hàng.
-level2_name|Cấp hai. Đếm xu ngôi sao.
 level_locked|Nhím bán xong một ngày ở cấp một thì mở được cấp hai nhé!
 tap_shelf|Nhím chạm vào món trên kệ để bỏ vào khay nhé!
 bell_empty|Khay còn trống nè! Nhím chọn món trên kệ trước nhé.
-bell_hint|Đủ rồi thì Nhím bấm chuông nhé!
-tray_full|Khay đầy rồi nè! Nhím chạm vào món trên khay để bỏ bớt nhé.
+bell_hint|Đúng rồi! Nhím bấm chuông giao hàng nhé!
 more_end|nữa nè.
-over_end|thôi nè. Nhím chạm vào món trên khay để bỏ bớt nhé.
-wrong_end|đâu nè. Nhím chạm vào món đó trên khay để bỏ ra nhé.
-coin_intro|Nhím chạm vào từng xu để đếm nhé!
-coin_ask|Có tất cả mấy xu?
 right|Đúng rồi!
 retry|Gần đúng rồi, Nhím thử lại nhé!
 hint_last|Cái này nè!

@@ -3,9 +3,9 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 
 export const els = {
   hud: $('hud'), home: $<HTMLButtonElement>('home'), say: $<HTMLButtonElement>('say'), stars: $('stars'), starsN: $('stars-n'), daypips: $('daypips'),
-  order: $('order'), ordPic: $<HTMLButtonElement>('ord-pic'), ordWord: $<HTMLButtonElement>('ord-word'), ordQty: $('ord-qty'), ordPips: $('ord-pips'),
+  order: $('order'),
   bell: $<HTMLButtonElement>('bell'), hand: $('hand'),
-  panel: $('panel'), panelEmoji: $('panel-emoji'), panelWord: $('panel-word'), panelPrice: $('panel-price'), options: $('options'),
+  panel: $('panel'), panelTop: $('panel-top'), panelEmoji: $('panel-emoji'), panelWord: $('panel-word'), panelPrice: $('panel-price'), options: $('options'),
   toast: $('toast'), confetti: $('confetti'), fade: $('fade'), debug: $('debug'),
   start: $('start'), lvl1: $<HTMLButtonElement>('lvl1'), lvl2: $<HTMLButtonElement>('lvl2'),
   dayend: $('dayend'), dayendActions: $('dayend-actions'), dayendFaces: $('dayend-faces'), dayendStars: $('dayend-stars'), dayendNext: $('dayend-next'),
@@ -87,8 +87,9 @@ export function showOptions(items: { label: string; value: string }[], onPick: (
   });
 }
 
-export function showPanel(on: boolean, chalk = false): void {
+export function showPanel(on: boolean, chalk = false, top = false): void {
   els.panel.hidden = !on;
+  els.panelTop.hidden = !top;
   els.panel.classList.toggle('chalk', chalk);
   if (!on) { els.options.innerHTML = ''; els.panelEmoji.hidden = true; els.panelWord.hidden = true; els.panelPrice.hidden = true; }
 }

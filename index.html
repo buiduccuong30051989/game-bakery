@@ -45,7 +45,7 @@
     #stars.bump { animation: bump .5s ease; }
 
     /* thẻ gọi món: bong bóng nói cạnh đầu khách */
-    #order { position: fixed; left: 0; top: 0; z-index: 7; background: #fff; border: 6px solid var(--ink); border-radius: 36px; padding: 10px 22px 12px 14px;
+    #order { position: fixed; left: 0; top: 0; z-index: 7; background: #fff; border: 6px solid var(--ink); border-radius: 36px; padding: 10px 16px 12px 14px;
       box-shadow: var(--shadow), 0 0 0 8px rgba(255,255,255,.5); display: flex; flex-direction: column; align-items: center; gap: 4px; transform-origin: 0 100%;
       will-change: transform; }
     #order.pop { animation: orderIn .45s cubic-bezier(.2,1.6,.4,1) both; }
@@ -54,19 +54,25 @@
     #order::before { content: ''; position: absolute; left: -14px; bottom: 30px; border: 12px solid transparent; border-right: 16px solid #fff; z-index: 1; }
     #order.flip::after { left: auto; right: -26px; border-right-color: transparent; border-left: 22px solid var(--ink); }
     #order.flip::before { left: auto; right: -14px; border-right-color: transparent; border-left: 16px solid #fff; }
-    .ord-row { display: flex; align-items: center; gap: 10px; }
-    #ord-pic { appearance: none; border: 0; background: radial-gradient(circle at 50% 40%, #fff8e6, #ffe2ec); border-radius: 26px; width: 124px; height: 124px; font-size: 86px; line-height: 1; display: grid; place-items: center; cursor: pointer; padding: 0; }
-    #ord-word { appearance: none; border: 4px dashed #ffb1d0; background: #fff8fc; border-radius: 22px; font: inherit; font-weight: 800; font-size: 64px; line-height: 1.1; color: var(--ink); padding: 4px 16px; min-width: 124px; min-height: 120px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: .02em; }
-    #ord-word span { display: inline-block; transition: color .15s, transform .15s; }
-    #ord-word span.lit { color: var(--accent); transform: translateY(-6px) scale(1.15); }
-    #ord-word.whole span { color: var(--success); }
-    #ord-qty { font-size: 64px; font-weight: 800; color: var(--pink); white-space: nowrap; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
-    #ord-pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; max-width: 360px; }
-    #ord-pips i { font-style: normal; font-size: 40px; line-height: 1; opacity: .25; filter: grayscale(.8); transition: opacity .2s, transform .2s, filter .2s; }
-    #ord-pips i.on { opacity: 1; filter: none; transform: scale(1.12); }
-    #ord-pips .cnt { display: inline-block; font-size: 40px; font-weight: 800; background: #fff4c2; border: 3px solid var(--gold); border-radius: 999px; padding: 0 18px; line-height: 1.25; }
-    #ord-pips i.extra { opacity: 1; filter: none; outline: 3px dashed var(--pink); border-radius: 10px; }
-
+    .ord-head { display: flex; align-items: center; gap: 10px; }
+    .ord-pic { appearance: none; border: 0; background: radial-gradient(circle at 50% 40%, #fff8e6, #ffe2ec); border-radius: 24px; width: 110px; height: 110px; font-size: 76px; line-height: 1; display: grid; place-items: center; cursor: pointer; padding: 0; }
+    .ord-word, .gword { appearance: none; border: 4px dashed #ffb1d0; background: #fff8fc; border-radius: 22px; font: inherit; font-weight: 800; color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: .02em; }
+    .ord-word { font-size: 62px; line-height: 1.1; padding: 4px 16px; min-width: 120px; min-height: 110px; }
+    .gword { font-size: 40px; line-height: 1; padding: 2px 12px; min-height: 64px; min-width: 96px; }
+    .ord-word span, .gword span { display: inline-block; transition: color .15s, transform .15s; }
+    .ord-word span.lit, .gword span.lit { color: var(--accent); transform: translateY(-6px) scale(1.15); }
+    .ord-word.whole span, .gword.whole span { color: var(--success); }
+    .eq { display: flex; align-items: center; gap: 8px; }
+    .grp { display: flex; flex-direction: column; align-items: center; gap: 2px; background: #fffaf3; border: 4px solid #f3d6e2; border-radius: 22px; padding: 6px 8px 2px; transition: border-color .2s; }
+    .grp.active { border-color: var(--pink); animation: pulse2 1.2s ease-in-out infinite; }
+    .pics { display: grid; gap: 0 2px; justify-items: center; }
+    .pics i { font-style: normal; font-size: 38px; line-height: 1.05; opacity: .28; filter: grayscale(.8); transition: opacity .2s, filter .2s, transform .2s; }
+    .pics i.on { opacity: 1; filter: none; }
+    .grp .num { white-space: nowrap; font-size: 46px; line-height: 1; font-weight: 800; color: var(--ink); }
+    .op { font-size: 60px; font-weight: 800; color: var(--pink); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
+    .gpic { font-size: 56px; line-height: 1; }
+    .ans { width: 84px; height: 84px; border-radius: 50%; background: #fff4c2; border: 5px solid var(--gold); font-size: 56px; font-weight: 800; display: grid; place-items: center; }
+    .ans.done { background: var(--success); border-color: #3f9500; color: #fff; }
 
     /* chuông giao hàng */
     #bell { position: fixed; left: 0; top: 0; z-index: 8; width: 148px; height: 148px; font-size: 84px; background: #fff6d6; border-color: #b8860b; }
@@ -185,10 +191,9 @@
       #bell { width: 124px; height: 124px; font-size: 70px; }
       .pill { font-size: 26px; }
       #daypips i { width: 36px; height: 36px; font-size: 22px; }
-      #ord-pic { width: 104px; height: 104px; font-size: 70px; }
-      #ord-word { font-size: 50px; min-height: 104px; }
-      #ord-qty { font-size: 52px; }
-      #ord-pips i { font-size: 30px; }
+      .ord-pic { width: 92px; height: 92px; font-size: 62px; }
+      .ord-word { font-size: 50px; min-height: 92px; }
+      .pics i { font-size: 30px; } .grp .num { font-size: 38px; } .op { font-size: 48px; } .ans { width: 70px; height: 70px; font-size: 46px; }
       .opt { width: 116px; height: 116px; font-size: 66px; }
       .lvl { width: 190px; min-height: 170px; }
       #family { top: calc(max(14px, env(safe-area-inset-top)) + 110px); }
@@ -209,14 +214,7 @@
     </div>
   </div>
 
-  <div id="order" hidden>
-    <div class="ord-row">
-      <button id="ord-pic" aria-label="Nghe lại món">🍎</button>
-      <button id="ord-word" aria-label="Đánh vần"></button>
-      <div id="ord-qty">×3</div>
-    </div>
-    <div id="ord-pips"></div>
-  </div>
+  <div id="order" hidden></div>
   <button id="bell" class="big" aria-label="Giao hàng" hidden>🛎️</button>
   <div id="hand" hidden><span>👆</span></div>
 

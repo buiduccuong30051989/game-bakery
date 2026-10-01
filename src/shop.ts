@@ -324,8 +324,13 @@ export class Shop {
   }
 
   /** 1 bản model món ăn, fit theo cạnh lớn nhất. */
-  async itemMesh(item: Pick<ItemDef, 'model' | 'rotY'>, size: number): Promise<THREE.Group> {
+  async itemMesh(item: Pick<ItemDef, 'model' | 'rotY' | 'color'>, size: number): Promise<THREE.Group> {
     const { obj } = await instance(item.model);
+    if (item.color !== undefined) {
+      // sơn 1 màu (vd trứng nâu → trắng kem cho khớp 🥚 trên thẻ)
+      const m = mat(item.color, { rough: 0.5, emissive: item.color, ei: 0.18 });
+      obj.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).material = m; });
+    }
     const g = fitSize(obj, size);
     if (item.rotY) g.rotation.y = item.rotY;
     return g;

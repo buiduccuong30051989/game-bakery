@@ -1,6 +1,6 @@
 # Plan game 4: "Tiệm bánh của Nhím" (Three.js 3D, bán hàng + học)
 
-Trạng thái: PLAN, 01/10/2026, chờ Adam gật.
+Trạng thái: BẢN 1 ĐÃ LÀM (01/10/2026). Đổi theo ba Nhím: toán là phép cộng trong 10 (bé đã biết đếm), khách là Equestria Girls (người nhà đóng vai) – xem mục "Thay đổi 01/10" cuối file.
 
 ## 1 câu
 
@@ -57,3 +57,9 @@ Người: model Quaternius CC0 (Animated Woman/Man/Old có Idle/Walk/Wave) đổ
 
 - Cấp 1 + 2 trọn vẹn, 6 khách gia đình + Mun/Rơm, trang trí mở 3 nấc.
 - Cấp 3 (thối tiền), khách pony: bản 2.
+
+## Thay đổi 01/10 (theo ba Nhím)
+
+- **Toán = phép cộng trong 10**, bỏ vòng chỉ đếm. Khách gọi 2 phần ("3 quả táo và 2 quả táo nữa" / "2 cái bánh và 3 cây kem"); thẻ là phép cộng bằng hình `🍎🍎🍎 + 🍎🍎 = ?` + số; khay 2 ngăn, đủ thì trượt gộp; chọn tổng trong 3 số; sai thì món trên khay đếm 1..N cho bé thấy. Đúng: khách nói cả câu "Ba cộng hai bằng năm!".
+- Cấp 1: cùng 1 món, tổng ≤ 5, số sau 1–2. Cấp 2: 2 món khác nhau, tổng ≤ 10; trả xu cũng là phép cộng "bánh 2 xu + kem 3 xu = ? xu". Cấp 3 (thối tiền) vẫn để bản 2.
+- **Khách = Equestria Girls** (Sketchfab bordiyan20035, CC BY-NC, chỉ chơi trong nhà): Ba Cường = Rainbow Dash, Mẹ Yến = Rarity, Bà Tuyết = Celestia, Ông Cương = Applejack, Bác Hanh = Luna; bạn: Pinkie, Fluttershy, Sunset; Nhím = Twilight đứng quầy đeo tạp dề. Mèo giữ nguyên.
