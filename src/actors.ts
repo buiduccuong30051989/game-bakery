@@ -1,10 +1,11 @@
-// Nhân vật "sống": người nhà (Quaternius CC0: Idle / Walk / Wave / Interact) và mèo (Quaternius cat, đuôi dựng bằng code).
+// Nhân vật "sống": lớp Actor chung (đi theo đường, quay mượt, nhảy, gật khi nói) + mèo (Quaternius cat, đuôi dựng bằng code).
+// Người (Equestria Girls, không có clip) ở src/eg.ts.
 // Lớp clip + lớp code: đi theo đường (quay mượt), vẫy, nhún nhảy mừng, gật đầu khi nói, ngó nghiêng khi chờ,
 // thở nhẹ khi đứng. Mọi chuyển clip crossfade, mọi xoay lerp → không giật.
 import * as THREE from 'three';
 import { instance, fitHeight, findClip, nameTag } from './assets.ts';
 import { wait } from './tween.ts';
-import type { CustomerDef, Prop } from './data.ts';
+import type { CustomerDef } from './data.ts';
 
 function wrapAngle(a: number): number {
   while (a > Math.PI) a -= Math.PI * 2;
@@ -164,124 +165,6 @@ export abstract class Actor {
   }
 }
 
-// ------------------------------------------------------------------ người
-export class Human extends Actor {
-  private chest: THREE.Object3D | null = null;
-
-  async load(): Promise<void> {
-    const { obj, clips } = await instance(this.def.model, { tint: this.def.tint, skinned: true });
-    fitHeight(obj, this.def.height);
-    this.body.add(obj);
-    this.setupMixer(obj, clips, { idle: 'Idle', walk: 'Walk', wave: 'Wave', interact: 'Interact', idle2: 'Idle_Neutral', run: 'Run' });
-    this.walkRef = 1.25;
-    obj.traverse((o) => {
-      if (o.name === 'Head' && !this.head) this.head = o;
-      if (o.name === 'Chest' && !this.chest) this.chest = o;
-    });
-    this.play('idle');
-    this.mixer!.update(0);
-    obj.updateMatrixWorld(true);
-    this.addProps(obj, this.def.props);
-    this.tag = nameTag(this.def.name, this.def.color, 0.3);
-    this.tagHeight = this.def.height + 0.38;
-    this.tag.position.y = this.tagHeight;
-    this.root.add(this.tag);
-  }
-
-  /** Phụ kiện gắn vào xương đầu: kính, mũ, búi tóc, nơ, kẹp hoa. Đặt theo hộp bao lưới đầu ở tư thế idle. */
-  private addProps(obj: THREE.Object3D, props: Prop[]): void {
-    if (!this.head || !props.length) return;
-    // lưới đầu bị tách theo material (Casual_Head_0.._4): gộp hộp bao của mọi mảnh
-    const hb = new THREE.Box3();
-    obj.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh && (/head/i.test(o.name) || /head/i.test(o.parent?.name ?? ''))) hb.union(new THREE.Box3().setFromObject(o, true));
-    });
-    if (hb.isEmpty()) return;
-    // khung toạ độ thế giới tạm thời (root ở gốc, quay 0): mặt nhìn +z
-    const size = hb.getSize(new THREE.Vector3());
-    const c = hb.getCenter(new THREE.Vector3());
-    const W = size.x;
-    const headWorld = this.head.matrixWorld.clone();
-    const inv = headWorld.clone().invert();
-    const attach = (m: THREE.Object3D, pos: THREE.Vector3) => {
-      // world (vị trí + scale 1, hướng theo root) → hệ toạ độ xương đầu
-      const world = new THREE.Matrix4().compose(pos, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
-      const local = inv.clone().multiply(world);
-      local.decompose(m.position, m.quaternion, m.scale);
-      this.head!.add(m);
-    };
-    for (const p of props) {
-      if (p === 'glasses') {
-        const g = new THREE.Group();
-        const fm = new THREE.MeshStandardMaterial({ color: 0x5a3b2e, roughness: 0.4 });
-        const lens = new THREE.MeshBasicMaterial({ color: 0xe8f7ff, transparent: true, opacity: 0.35 });
-        const r = W * 0.125;
-        for (const s of [-1, 1]) {
-          const ring = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.16, 8, 24), fm);
-          ring.position.x = s * r * 1.15;
-          const l = new THREE.Mesh(new THREE.CircleGeometry(r, 20), lens);
-          l.position.x = s * r * 1.15;
-          g.add(ring, l);
-        }
-        const bridge = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.12, r * 0.12, r * 0.5), fm);
-        bridge.rotation.z = Math.PI / 2;
-        g.add(bridge);
-        attach(g, new THREE.Vector3(c.x, c.y - size.y * 0.02, hb.max.z + r * 0.15));
-      } else if (p === 'cap') {
-        const g = new THREE.Group();
-        const cm = new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.9 });
-        const dome = new THREE.Mesh(new THREE.SphereGeometry(W * 0.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), cm);
-        dome.scale.y = 0.55;
-        const brim = new THREE.Mesh(new THREE.CylinderGeometry(W * 0.36, W * 0.36, W * 0.04, 24, 1, false, -Math.PI / 2, Math.PI), cm);
-        brim.position.set(0, 0, W * 0.38);
-        brim.scale.z = 0.7;
-        const band = new THREE.Mesh(new THREE.CylinderGeometry(W * 0.605, W * 0.605, W * 0.08, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0x4a3426, roughness: 0.9 }));
-        band.position.y = W * 0.04;
-        g.add(dome, brim, band);
-        g.traverse((o) => { (o as THREE.Mesh).castShadow = true; });
-        attach(g, new THREE.Vector3(c.x, hb.max.y - size.y * 0.26, c.z - W * 0.04));
-      } else if (p === 'bun') {
-        const hair = this.def.tint.Red ?? this.def.tint.Hair ?? 0xdedae6;
-        const bun = new THREE.Mesh(new THREE.SphereGeometry(W * 0.26, 18, 14), new THREE.MeshStandardMaterial({ color: hair, roughness: 0.9 }));
-        bun.castShadow = true;
-        attach(bun, new THREE.Vector3(c.x, hb.max.y - size.y * 0.12, hb.min.z + W * 0.12));
-        const pin = new THREE.Mesh(new THREE.SphereGeometry(W * 0.07, 10, 8), new THREE.MeshStandardMaterial({ color: 0xb48cff, roughness: 0.4 }));
-        attach(pin, new THREE.Vector3(c.x + W * 0.2, hb.max.y - size.y * 0.1, hb.min.z + W * 0.12));
-      } else if (p === 'bow') {
-        const g = new THREE.Group();
-        const bm = new THREE.MeshStandardMaterial({ color: 0xff4f9a, roughness: 0.6 });
-        for (const s of [-1, 1]) {
-          const wing = new THREE.Mesh(new THREE.ConeGeometry(W * 0.18, W * 0.34, 12), bm);
-          wing.rotation.z = s * Math.PI / 2;
-          wing.position.x = s * W * 0.17;
-          g.add(wing);
-        }
-        g.add(new THREE.Mesh(new THREE.SphereGeometry(W * 0.085, 10, 8), bm));
-        g.rotation.z = 0.3;
-        attach(g, new THREE.Vector3(c.x + W * 0.3, hb.max.y - size.y * 0.08, c.z + W * 0.05));
-      } else if (p === 'headband') {
-        const g = new THREE.Group();
-        const pm = new THREE.MeshStandardMaterial({ color: 0xffe14d, roughness: 0.6 });
-        for (let i = 0; i < 5; i++) {
-          const petal = new THREE.Mesh(new THREE.SphereGeometry(W * 0.1, 10, 8), new THREE.MeshStandardMaterial({ color: 0xff6f91, roughness: 0.6 }));
-          const a = (i / 5) * Math.PI * 2;
-          petal.position.set(Math.cos(a) * W * 0.11, Math.sin(a) * W * 0.11, 0);
-          g.add(petal);
-        }
-        g.add(new THREE.Mesh(new THREE.SphereGeometry(W * 0.08, 10, 8), pm));
-        attach(g, new THREE.Vector3(c.x - W * 0.34, hb.max.y - size.y * 0.16, c.z + W * 0.12));
-      }
-    }
-  }
-
-  update(dt: number): void {
-    super.update(dt);
-    // thở + lắc nhẹ khi đứng (cộng lên idle cho đỡ "tượng")
-    if (this.chest && !this.walking) this.chest.rotation.z += Math.sin(this.t * 1.3) * 0.02;
-    this.applyHead('x');
-  }
-}
-
 // ------------------------------------------------------------------ mèo
 export class Cat extends Actor {
   private tail = new THREE.Group();
@@ -377,8 +260,3 @@ export class Cat extends Actor {
   }
 }
 
-export async function makeActor(def: CustomerDef): Promise<Actor> {
-  const a = def.kind === 'cat' ? new Cat(def) : new Human(def);
-  await a.load();
-  return a;
-}

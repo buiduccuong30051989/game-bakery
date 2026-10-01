@@ -129,34 +129,46 @@ export function emojiSprite(emoji: string, size = 1): THREE.Sprite {
   return sp;
 }
 
-/** Bảng tên: viên thuốc màu + chữ trắng viền. Trả sprite (rộng theo chữ, cao = h mét). */
-export function nameTag(text: string, color: string, h = 0.26): THREE.Sprite {
+/** Bảng tên: viên thuốc màu + chữ trắng viền, dòng phụ nhỏ (vd "Celestia"). Trả sprite cao h mét (thêm khi có dòng phụ). */
+export function nameTag(text: string, color: string, h = 0.26, sub?: string): THREE.Sprite {
   const font = '800 64px "Baloo 2", "Nunito", system-ui, sans-serif';
+  const subFont = '800 40px "Baloo 2", "Nunito", system-ui, sans-serif';
   const c = document.createElement('canvas');
   const ctx0 = c.getContext('2d')!;
   ctx0.font = font;
-  const w = Math.ceil(ctx0.measureText(text).width) + 72;
-  c.width = w; c.height = 96;
+  let w = Math.ceil(ctx0.measureText(text).width) + 72;
+  ctx0.font = subFont;
+  if (sub) w = Math.max(w, Math.ceil(ctx0.measureText(sub).width) + 72);
+  const H = sub ? 140 : 96;
+  c.width = w; c.height = H;
   const ctx = c.getContext('2d')!;
-  ctx.font = font;
   ctx.fillStyle = color;
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 8;
-  const r = 44;
   ctx.beginPath();
-  ctx.roundRect(4, 4, w - 8, 88, r);
+  ctx.roundRect(4, 4, w - 8, 88, 44);
   ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = '#fff';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = font;
   ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(74,44,74,.55)';
+  ctx.fillStyle = '#fff';
   ctx.strokeText(text, w / 2, 52);
   ctx.fillText(text, w / 2, 52);
+  if (sub) {
+    ctx.font = subFont;
+    ctx.lineWidth = 8; ctx.strokeStyle = '#fff';
+    ctx.fillStyle = color;
+    ctx.strokeText(sub, w / 2, 116);
+    ctx.fillText(sub, w / 2, 116);
+  }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }));
-  sp.scale.set((h * w) / 96, h, 1);
+  const hh = (h * H) / 96;
+  sp.scale.set((h * w) / 96, hh, 1);
+  sp.center.set(0.5, 1 - 48 / H); // tâm ở giữa dòng chính
   sp.renderOrder = 20;
   return sp;
 }
