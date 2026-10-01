@@ -53,6 +53,8 @@ export class Game {
   private dayIndex = 0;
   private dayStars = 0;
   private waiting: Actor | null = null;
+  /** id khách sau đang vào chờ (đặt ngay khi bắt đầu, trước khi model tải xong) */
+  private waitingFor: string | null = null;
   private waitingPromise: Promise<void> | null = null;
   private run = 0;
   private lastTap = performance.now();
@@ -107,7 +109,6 @@ export class Game {
   // ------------------------------------------------------------------ dựng
   async init(): Promise<void> {
     await prefetch([...new Set([...CUSTOMERS.map((c) => c.model), ...ITEMS.map((i) => i.model)])]);
-    void preload(['sfx_pop', 'sfx_soft', 'sfx_tap', 'sfx_win', 'cry_cat', 'right', 'retry', 'hint_last', ...FAMILY_KEYS]);
     const [mun, rom] = await Promise.all([makeActor(CUSTOMERS.find((c) => c.id === 'mun')!), makeActor(CUSTOMERS.find((c) => c.id === 'rom')!)]) as [Cat, Cat];
     this.mun = mun; this.rom = rom;
     mun.setPos(SPOT.sill);
@@ -313,12 +314,19 @@ export class Game {
     if (!['order', 'coins'].includes(this.phase)) return;
     if (performance.now() - this.lastTap < IDLE_MS) return;
     this.lastTap = performance.now();
-    if (this.phase === 'order') { this.repeatOrder(); this.updateHint(true); }
+    if (this.phase === 'order') {
+      const o = this.order;
+      const done = o && this.tray.length === o.n && this.tray.every((t) => t.item === o.item);
+      if (done) void this.talk(null, ['bell_hint']);
+      else if (o && !this.tray.length && o.index === 0) { void o.actor.once(o.actor instanceof Human ? 'wave' : 'yes'); void this.talk(o.actor, [ck('remind', o.cust), keyQty(o.item, o.n), 'tap_shelf']); }
+      else this.repeatOrder();
+      this.updateHint(true);
+    }
     else if (this.phase === 'coins') { void this.talk(null, ['coin_intro']); this.updateHint(true); }
   }
 
   // ------------------------------------------------------------------ ngày
-  async startDay(levelId: number): Promise<void> {
+  async startDay(levelId: number, again = false): Promise<void> {
     const token = ++this.run;
     this.level = LEVELS.find((l) => l.id === levelId && l.enabled) ?? LEVELS[0];
     this.planDay();
@@ -337,11 +345,13 @@ export class Game {
     await this.shop.setShelf(shelf);
     this.shop.drawBoard(null, shelf);
     void prefetch([...new Set(this.visits.map((v) => v.cust.model))]);
+    // tải trước tiếng (sau chạm đầu tiên: tạo AudioContext trước cử chỉ thì Chrome/iPad cảnh báo)
+    void preload(['sfx_pop', 'sfx_soft', 'sfx_tap', 'sfx_win', 'cry_cat', 'right', 'retry', 'hint_last', ...FAMILY_KEYS]);
     try {
       this.phase = 'busy';
       void musicBox('C5:0.5 E5:0.5 G5:0.5 C6:1 G5:0.5 C6:1.5', 200, 0.16);
-      const intro: string[] = [];
-      if (!this.progress.introDone) intro.push('intro_first'); else intro.push('intro_day');
+      const intro: string[] = [this.level.id === 2 ? 'level2_name' : 'level1_name'];
+      if (!this.progress.introDone) intro.push('intro_first'); else intro.push(again ? 'new_day' : 'intro_day');
       if (this.level.id === 2 && !this.progress.intro2Done) intro.push('intro_l2');
       this.repeatFn = () => void this.talk(null, intro);
       await this.talk(null, intro);
@@ -415,7 +425,7 @@ export class Game {
     this.repeatFn = () => this.repeatOrder();
     // khách sau bước vào chờ (không chờ mèo – mèo đã ở trong tiệm)
     const next = this.visits[index + 1];
-    if (next && next.cust.kind === 'human') setTimeout(() => { if (token === this.run) this.preEnter(token, next); }, 6500);
+    if (next && next.cust.kind === 'human') setTimeout(() => { if (token === this.run && this.order?.index === index) this.preEnter(token, next); }, 6500);
     await Promise.all([wave, this.talk(actor, [ck(Math.random() < 0.5 ? 'greet1' : 'greet2', o.cust), keyQty(o.item, o.n)])]);
     this.alive(token);
     if (this.auto) void this.autoOrder(token, o);
@@ -440,11 +450,16 @@ export class Game {
       await this.jumpTo(cat, SPOT.counterTop, 0.55);
       return cat;
     }
-    let a = this.waiting && this.waiting.def.id === v.cust.id ? this.waiting : null;
-    if (a) {
+    let a: Actor | null = null;
+    if (this.waitingFor === v.cust.id) {
+      // khách này đã vào đứng chờ (hoặc đang bước vào): đợi tới chỗ chờ rồi đi tới quầy
       await this.waitingPromise;
-      this.waiting = null;
       this.alive(token);
+      a = this.waiting;
+      this.waiting = null;
+      this.waitingFor = null;
+    }
+    if (a) {
       await a.walkTo([SPOT.counter.clone()], 1.15);
     } else {
       a = await makeActor(v.cust);
@@ -465,7 +480,8 @@ export class Game {
 
   /** Khách sau vào trước, đứng chờ cạnh cửa sổ, ngó nghiêng + vẫy Nhím. */
   private preEnter(token: number, v: Visit): void {
-    if (this.waiting) return;
+    if (this.waitingFor) return;
+    this.waitingFor = v.cust.id;
     this.waitingPromise = (async () => {
       const a = await makeActor(v.cust);
       if (token !== this.run) { a.dispose(); return; }
@@ -1111,6 +1127,7 @@ export class Game {
     this.coins = [];
     for (const a of [...this.actors]) if (a instanceof Human) this.removeActor(a);
     this.waiting = null;
+    this.waitingFor = null;
     for (const cat of [this.mun, this.rom]) {
       if (!cat) continue;
       this.catBusy.delete(cat);

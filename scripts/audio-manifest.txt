@@ -22,14 +22,12 @@ retry|Gần đúng rồi, Nhím thử lại nhé!
 hint_last|Cái này nè!
 fill_intro|Ôi, bảng giá bị mất một chữ rồi! Nhím chọn chữ còn thiếu giúp nhé.
 fill_ask|Chữ nào còn thiếu?
-star_get|Nhím được một ngôi sao!
 day_end|Đóng cửa tiệm! Hôm nay Nhím bán hàng giỏi quá! Nhím được sáu ngôi sao!
 decor_flowers|Ôi! Tiệm mình có hoa và rèm cửa mới nè! Đẹp quá!
 decor_lights|Tiệm mình có đèn lấp lánh và bóng bay rồi! Vui quá!
 decor_sign|Oa! Tiệm có bảng hiệu và tháp bánh kem nè! Nhím giỏi nhất!
 decor_next|Thêm ngôi sao nữa là tiệm mình đẹp hơn nữa đó!
 new_day|Mình mở cửa tiệm ngày mới nhé!
-next_customer|Có khách tới kìa!
 # --- gia đình cổ vũ (src/family.ts)
 fam_ba_cuong_1|Nhím bán hàng giỏi quá!|150
 fam_ba_cuong_2|Ba mua bánh của Nhím mỗi ngày!|150

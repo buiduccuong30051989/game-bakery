@@ -19,7 +19,7 @@ function refreshLevels(): void {
 }
 
 let starting = false;
-async function begin(level: number): Promise<void> {
+async function begin(level: number, again = false): Promise<void> {
   if (starting) return;
   starting = true;
   unlockAudio();
@@ -27,7 +27,7 @@ async function begin(level: number): Promise<void> {
   els.dayend.classList.add('hide');
   // chống chạm đúp; không chờ cả ngày xong (về menu giữa chừng thì luồng cũ tự thoát)
   setTimeout(() => { starting = false; }, 900);
-  await game.startDay(level);
+  await game.startDay(level, again);
 }
 
 function toMenu(): void {
@@ -49,7 +49,7 @@ els.lvl2.addEventListener('click', () => {
 });
 els.home.addEventListener('click', () => toMenu());
 els.btnMenu.addEventListener('click', () => toMenu());
-els.btnAgain.addEventListener('click', () => { game.stopDay(); void begin(game.level.id); });
+els.btnAgain.addEventListener('click', () => { game.stopDay(); void begin(game.level.id, true); });
 els.btnLevel2.addEventListener('click', () => { game.stopDay(); void begin(2); });
 
 refreshLevels();
