@@ -1,0 +1,54 @@
+# Câu chung (người dẫn + gia đình). key|text|rate(tuỳ chọn) – giọng Linh macOS.
+# Câu sinh từ dữ liệu (tên món, "ba quả táo", câu từng khách, token đánh vần): scripts/audio/_gen.txt (TỰ SINH).
+# Thay giọng thật: ghi đè public/audio/<key>.m4a cùng tên.
+# --- người dẫn
+intro_first|Chào Nhím! Hôm nay Nhím làm chủ tiệm bánh nhé! Khách vào, Nhím nghe khách muốn mua gì, chạm vào món trên kệ để bỏ vào khay, rồi bấm chuông để giao hàng nhé!
+intro_day|Tiệm bánh của Nhím mở cửa rồi! Khách sắp đến kìa!
+intro_l2|Cấp hai nè! Khách trả tiền bằng xu ngôi sao. Nhím đếm xu giúp nhé!
+level1_name|Cấp một. Đếm món hàng.
+level2_name|Cấp hai. Đếm xu ngôi sao.
+level_locked|Nhím bán xong một ngày ở cấp một thì mở được cấp hai nhé!
+tap_shelf|Nhím chạm vào món trên kệ để bỏ vào khay nhé!
+bell_empty|Khay còn trống nè! Nhím chọn món trên kệ trước nhé.
+bell_hint|Đủ rồi thì Nhím bấm chuông nhé!
+tray_full|Khay đầy rồi nè! Nhím chạm vào món trên khay để bỏ bớt nhé.
+more_end|nữa nè.
+over_end|thôi nè. Nhím chạm vào món trên khay để bỏ bớt nhé.
+wrong_end|đâu nè. Nhím chạm vào món đó trên khay để bỏ ra nhé.
+coin_intro|Nhím chạm vào từng xu để đếm nhé!
+coin_ask|Có tất cả mấy xu?
+right|Đúng rồi!
+retry|Gần đúng rồi, Nhím thử lại nhé!
+hint_last|Cái này nè!
+fill_intro|Ôi, bảng giá bị mất một chữ rồi! Nhím chọn chữ còn thiếu giúp nhé.
+fill_ask|Chữ nào còn thiếu?
+star_get|Nhím được một ngôi sao!
+day_end|Đóng cửa tiệm! Hôm nay Nhím bán hàng giỏi quá! Nhím được sáu ngôi sao!
+decor_flowers|Ôi! Tiệm mình có hoa và rèm cửa mới nè! Đẹp quá!
+decor_lights|Tiệm mình có đèn lấp lánh và bóng bay rồi! Vui quá!
+decor_sign|Oa! Tiệm có bảng hiệu và tháp bánh kem nè! Nhím giỏi nhất!
+decor_next|Thêm ngôi sao nữa là tiệm mình đẹp hơn nữa đó!
+new_day|Mình mở cửa tiệm ngày mới nhé!
+next_customer|Có khách tới kìa!
+# --- gia đình cổ vũ (src/family.ts)
+fam_ba_cuong_1|Nhím bán hàng giỏi quá!|150
+fam_ba_cuong_2|Ba mua bánh của Nhím mỗi ngày!|150
+fam_ba_cuong_3|Ba giơ ngón tay cái cho Nhím nè!|150
+fam_ba_cuong_ball|Hoan hô chủ tiệm Nhím!|150
+fam_me_yen_1|Bánh của Nhím ngon nhất!|155
+fam_me_yen_2|Mẹ thương Nhím nhất trên đời!|155
+fam_me_yen_3|Nhím đếm giỏi quá!|155
+fam_me_yen_ball|Nhím giỏi nhất!|155
+fam_ba_tuyet_1|Cháu bà bán hàng khéo quá!|138
+fam_ba_tuyet_2|Bà thương Nhím nhiều lắm!|138
+fam_ba_tuyet_3|Bà ôm Nhím một cái thật chặt!|138
+fam_ba_tuyet_ball|Bà thương Nhím!|138
+fam_ong_cuong_1|Ông vỗ tay cho Nhím nè!|135
+fam_ong_cuong_2|Chủ tiệm nhỏ giỏi quá!|135
+fam_ong_cuong_3|Ông cười tít mắt vì Nhím đó!|135
+fam_ong_cuong_ball|Tuyệt vời cháu ơi!|135
+fam_bac_hanh_1|Bác thơm Nhím một cái!|155
+fam_bac_hanh_2|Nhím thông minh quá!|155
+fam_bac_hanh_3|Tiệm của Nhím đẹp quá!|155
+fam_bac_hanh_ball|Thơm Nhím nào!|155
+fam_all|Cả nhà thương Nhím nhất!

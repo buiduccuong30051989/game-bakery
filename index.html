@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#ffe3ec" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🧁%3C/text%3E%3C/svg%3E" />
+  <title>Tiệm bánh của Nhím</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #ffe3ec; --ink: #4a2c4a; --accent: #ff9600; --success: #58cc02; --pink: #ff5fb4; --gold: #ffc233;
+      --card: #fffaf0; --shadow: 0 6px 0 rgba(74, 44, 74, .22); --mint: #9ee6cf; --chalk: #2f5d50;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    [hidden] { display: none !important; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+    body { font-family: 'Baloo 2', 'Nunito', system-ui, sans-serif; color: var(--ink); user-select: none; -webkit-user-select: none; touch-action: manipulation; overscroll-behavior: none; }
+    #app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+    .big {
+      appearance: none; border: 5px solid var(--ink); border-radius: 999px; background: #fff;
+      width: 104px; height: 104px; font: inherit; font-size: 50px; line-height: 1; cursor: pointer;
+      box-shadow: var(--shadow); display: grid; place-items: center; color: var(--ink); padding: 0;
+      transition: transform .1s ease, box-shadow .1s ease;
+    }
+    .big:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(74, 44, 74, .2); }
+
+    /* HUD */
+    #hud { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); right: max(14px, env(safe-area-inset-right)); display: flex; justify-content: flex-start; align-items: flex-start; z-index: 6; pointer-events: none; gap: 14px; }
+    #hud > * { pointer-events: auto; }
+    #home { background: #fff3fb; }
+    .pill { background: var(--card); border: 4px solid var(--ink); border-radius: 999px; padding: 4px 22px; font-size: 34px; font-weight: 800; box-shadow: var(--shadow); white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+    #hud-mid { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    #daypips { display: flex; gap: 8px; background: rgba(255,250,240,.9); border: 4px solid var(--ink); border-radius: 999px; padding: 6px 12px; box-shadow: var(--shadow); }
+    #daypips i { width: 42px; height: 42px; border-radius: 50%; background: #f3e3ea; border: 3px dashed #d9b9c7; display: grid; place-items: center; font-style: normal; font-size: 30px; line-height: 1; transition: transform .3s; }
+    #daypips i.now { border: 3px solid var(--pink); background: #fff; animation: pulse 1.2s ease-in-out infinite; }
+    #daypips i.done { background: #fff4c2; border: 3px solid var(--gold); }
+    #hud-right { display: flex; gap: 12px; align-items: center; margin-left: auto; }
+    #hud-mid { padding-top: 14px; }
+    #stars.bump { animation: bump .5s ease; }
+
+    /* thẻ gọi món: bong bóng nói cạnh đầu khách */
+    #order { position: fixed; left: 0; top: 0; z-index: 7; background: #fff; border: 6px solid var(--ink); border-radius: 36px; padding: 10px 22px 12px 14px;
+      box-shadow: var(--shadow), 0 0 0 8px rgba(255,255,255,.5); display: flex; flex-direction: column; align-items: center; gap: 4px; transform-origin: 0 100%;
+      will-change: transform; }
+    #order.pop { animation: orderIn .45s cubic-bezier(.2,1.6,.4,1) both; }
+    @keyframes orderIn { from { opacity: 0; scale: .3; } to { opacity: 1; scale: 1; } }
+    #order::after { content: ''; position: absolute; left: -26px; bottom: 26px; border: 16px solid transparent; border-right: 22px solid var(--ink); }
+    #order::before { content: ''; position: absolute; left: -14px; bottom: 30px; border: 12px solid transparent; border-right: 16px solid #fff; z-index: 1; }
+    #order.flip::after { left: auto; right: -26px; border-right-color: transparent; border-left: 22px solid var(--ink); }
+    #order.flip::before { left: auto; right: -14px; border-right-color: transparent; border-left: 16px solid #fff; }
+    .ord-row { display: flex; align-items: center; gap: 10px; }
+    #ord-pic { appearance: none; border: 0; background: radial-gradient(circle at 50% 40%, #fff8e6, #ffe2ec); border-radius: 26px; width: 124px; height: 124px; font-size: 86px; line-height: 1; display: grid; place-items: center; cursor: pointer; padding: 0; }
+    #ord-word { appearance: none; border: 4px dashed #ffb1d0; background: #fff8fc; border-radius: 22px; font: inherit; font-weight: 800; font-size: 64px; line-height: 1.1; color: var(--ink); padding: 4px 16px; min-width: 124px; min-height: 120px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: .02em; }
+    #ord-word span { display: inline-block; transition: color .15s, transform .15s; }
+    #ord-word span.lit { color: var(--accent); transform: translateY(-6px) scale(1.15); }
+    #ord-word.whole span { color: var(--success); }
+    #ord-qty { font-size: 64px; font-weight: 800; color: var(--pink); white-space: nowrap; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
+    #ord-pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; max-width: 360px; }
+    #ord-pips i { font-style: normal; font-size: 40px; line-height: 1; opacity: .25; filter: grayscale(.8); transition: opacity .2s, transform .2s, filter .2s; }
+    #ord-pips i.on { opacity: 1; filter: none; transform: scale(1.12); }
+    #ord-pips .cnt { display: inline-block; font-size: 40px; font-weight: 800; background: #fff4c2; border: 3px solid var(--gold); border-radius: 999px; padding: 0 18px; line-height: 1.25; }
+    #ord-pips i.extra { opacity: 1; filter: none; outline: 3px dashed var(--pink); border-radius: 10px; }
+
+
+    /* chuông giao hàng */
+    #bell { position: fixed; left: 0; top: 0; z-index: 8; width: 148px; height: 148px; font-size: 84px; background: #fff6d6; border-color: #b8860b; }
+    #bell.ready { background: var(--gold); animation: pulse2 1.1s ease-in-out infinite; box-shadow: var(--shadow), 0 0 0 12px rgba(255,194,51,.45); }
+    #bell.ring { animation: ring .5s ease; }
+    @keyframes pulse2 { 0%,100% { scale: 1; } 50% { scale: 1.08; } }
+    @keyframes ring { 0%,100% { rotate: 0deg; } 20% { rotate: -18deg; } 40% { rotate: 16deg; } 60% { rotate: -10deg; } 80% { rotate: 6deg; } }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+    @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
+    /* tay chỉ gợi ý */
+    #hand { position: fixed; left: 0; top: 0; z-index: 15; font-size: 92px; line-height: 1; pointer-events: none; filter: drop-shadow(0 6px 0 rgba(74,44,74,.25)); }
+    #hand > span { display: block; animation: poke .8s ease-in-out infinite; transform-origin: 50% 0; }
+    @keyframes poke { 0%,100% { transform: translateY(0); } 50% { transform: translateY(18px); } }
+
+    /* bảng chọn (số xu / chữ thiếu) */
+    #panel { position: fixed; bottom: max(14px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 9; width: min(860px, 94vw);
+      background: rgba(255, 250, 240, .97); border: 6px solid var(--ink); border-radius: 34px; padding: 12px 20px 18px; box-shadow: var(--shadow), 0 0 0 8px rgba(255,255,255,.4);
+      display: flex; flex-direction: column; align-items: center; gap: 12px; animation: rise .35s ease; }
+    #panel.chalk { background: var(--chalk); border-color: #8a5a3a; color: #fff; }
+    @keyframes rise { from { transform: translate(-50%, 40px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+    #panel-top { display: flex; align-items: center; justify-content: center; gap: 18px; min-height: 64px; flex-wrap: wrap; }
+    #panel-emoji { font-size: 92px; line-height: 1; }
+    #panel-word { font-size: clamp(64px, 9vw, 104px); font-weight: 800; letter-spacing: .06em; display: flex; gap: .02em; line-height: 1.05; }
+    #panel-word span { transition: color .15s, transform .15s; display: inline-block; }
+    #panel-word span.lit { color: var(--gold); transform: translateY(-6px) scale(1.12); }
+    #panel-word span.blank { color: #ffd36e; border-bottom: 7px dashed #ffd36e; line-height: .9; min-width: .6em; text-align: center; }
+    #panel-word.whole span { color: #9effa8; animation: bump .5s ease; }
+    #panel-price { font-size: 52px; font-weight: 800; color: #ffd36e; }
+    #options { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+    .opt { appearance: none; border: 6px solid var(--ink); border-radius: 30px; background: #fff; color: var(--ink); width: 140px; height: 140px; font: inherit; font-size: 84px; font-weight: 800;
+      box-shadow: var(--shadow); cursor: pointer; display: grid; place-items: center; transition: transform .15s, opacity .25s; padding: 0; line-height: 1; }
+    .opt:active { transform: translateY(4px); }
+    .opt.correct { background: var(--success); color: #fff; border-color: #3f9500; pointer-events: none; }
+    .opt.gone { opacity: 0; transform: scale(.4); pointer-events: none; }
+    .opt.hint { animation: hint .7s ease-in-out infinite; border-color: var(--accent); }
+    @keyframes hint { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); box-shadow: 0 0 0 12px rgba(255,150,0,.4); } }
+    .wobble { animation: wobble .45s ease; }
+    @keyframes wobble { 0%,100% { rotate: 0deg; } 25% { rotate: -6deg; } 50% { rotate: 6deg; } 75% { rotate: -4deg; } }
+
+    #toast { position: fixed; top: 26%; left: 50%; transform: translate(-50%, -50%); z-index: 9; pointer-events: none; font-size: clamp(52px, 8vw, 100px); font-weight: 800; color: #fff; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 6px 0 rgba(74,44,74,.25); opacity: 0; transition: opacity .25s, transform .25s; white-space: nowrap; }
+    #toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    .flystar { position: fixed; z-index: 30; font-size: 80px; line-height: 1; pointer-events: none; transition: transform .9s cubic-bezier(.5,-0.3,.6,1), opacity .3s; filter: drop-shadow(0 4px 0 rgba(74,44,74,.25)); }
+
+    #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
+    #confetti i { position: absolute; top: -24px; width: 14px; height: 22px; border-radius: 4px; animation: fall linear forwards; }
+    @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: .7; } }
+
+    #fade { position: fixed; inset: 0; z-index: 60; background: radial-gradient(circle at 50% 40%, #fff6fb, #ffd9e6); opacity: 1; transition: opacity .5s ease; display: grid; place-items: center; pointer-events: none; }
+    #fade.off { opacity: 0; }
+    #fade .loader { font-size: 110px; animation: spin 1.4s ease-in-out infinite; }
+    @keyframes spin { 0% { transform: rotate(-12deg) scale(1); } 50% { transform: rotate(12deg) scale(1.12); } 100% { transform: rotate(-12deg) scale(1); } }
+
+    /* màn đầu: tiệm 3D sống phía sau, chọn cấp */
+    .overlay { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; transition: opacity .5s ease; }
+    .overlay.hide { opacity: 0; pointer-events: none; }
+    #start { background: radial-gradient(circle at 50% 30%, rgba(255,255,255,.55), rgba(255,214,230,.75) 60%, rgba(255,190,215,.9)); }
+    #start .inner { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 20px; }
+    #start h1 { margin: 0; font-size: clamp(48px, 8.5vw, 104px); line-height: 1; color: #fff; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 0 8px 0 rgba(74,44,74,.22); }
+    #start .logo { font-size: clamp(90px, 14vw, 150px); line-height: 1; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 10px 0 rgba(74,44,74,.18)); }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+    #levels { display: flex; gap: 28px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
+    .lvl { appearance: none; font: inherit; color: var(--ink); cursor: pointer; width: 230px; min-height: 200px; border: 6px solid var(--ink); border-radius: 36px; background: #fff; box-shadow: var(--shadow);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px; position: relative; transition: transform .12s; }
+    .lvl:active { transform: translateY(4px); }
+    .lvl .num { position: absolute; top: -26px; left: -18px; width: 72px; height: 72px; border-radius: 50%; background: var(--pink); color: #fff; border: 5px solid var(--ink); font-size: 46px; font-weight: 800; display: grid; place-items: center; }
+    .lvl .pic { font-size: 62px; line-height: 1.1; }
+    .lvl .lbl { font-size: 30px; font-weight: 800; }
+    .lvl.go { animation: pulse 1.4s ease-in-out infinite; background: #fff6d6; }
+    .lvl.locked { opacity: .6; filter: grayscale(.6); }
+    .lvl.locked::after { content: '🔒'; position: absolute; right: -14px; top: -20px; font-size: 56px; }
+
+    /* cuối ngày */
+    #dayend { background: rgba(255, 228, 238, .55); }
+    #dayend .card { background: #fffaf0; border: 7px solid var(--ink); border-radius: 44px; padding: 22px 34px 26px; box-shadow: var(--shadow), 0 0 0 10px rgba(255,255,255,.5); display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 92vw; animation: rise2 .5s cubic-bezier(.2,1.5,.4,1); }
+    @keyframes rise2 { from { transform: translateY(60px) scale(.8); opacity: 0; } to { transform: none; opacity: 1; } }
+    #dayend h2 { margin: 0; font-size: clamp(46px, 7vw, 80px); line-height: 1; color: var(--pink); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
+    #dayend .faces { display: flex; gap: 10px; font-size: 54px; flex-wrap: wrap; justify-content: center; }
+    #dayend .starrow { display: flex; gap: 6px; font-size: 70px; min-height: 84px; }
+    #dayend .starrow i { font-style: normal; animation: starIn .45s cubic-bezier(.2,1.8,.4,1) both; }
+    @keyframes starIn { from { transform: scale(0) rotate(-90deg); } to { transform: none; } }
+    #dayend .decor-next { font-size: 30px; font-weight: 800; opacity: .85; display: flex; gap: 10px; align-items: center; }
+    #dayend .decor-next b { font-size: 46px; }
+    #dayend-actions { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+    .cta { appearance: none; border: 6px solid var(--ink); border-radius: 999px; background: var(--gold); color: var(--ink); font: inherit; font-weight: 800;
+      font-size: clamp(30px, 4.2vw, 44px); padding: 12px 34px; min-height: 104px; box-shadow: var(--shadow); cursor: pointer; display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+    .cta.go { animation: pulse 1.4s ease-in-out infinite; }
+    .cta.alt { background: #fff; }
+    .cta:active { transform: translateY(4px); }
+
+    /* gia đình cổ vũ (src/family.ts) */
+    #family { position: fixed; right: max(14px, env(safe-area-inset-right)); top: calc(max(14px, env(safe-area-inset-top)) + 126px); z-index: 45; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }
+    .fam-card { --fam: #ff5fb4; display: flex; align-items: center; gap: 14px; background: #fffaf0; border: 5px solid var(--fam); border-radius: 999px 40px 40px 999px; padding: 8px 26px 8px 8px;
+      box-shadow: var(--shadow), 0 0 0 6px rgba(255,255,255,.55); max-width: min(520px, 80vw); animation: famIn .5s cubic-bezier(.2,1.5,.4,1) both; position: relative; }
+    .fam-card::after { content: '💖'; position: absolute; left: -8px; top: -12px; font-size: 32px; animation: famHeart 1.2s ease-in-out infinite; }
+    .fam-card.out { animation: famOut .45s ease-in both; }
+    .fam-ava { width: 112px; height: 112px; flex: none; border-radius: 50%; border: 5px solid var(--fam); background: radial-gradient(circle at 50% 35%, #fff, #ffe6f4); display: grid; place-items: center; font-size: 72px; line-height: 1; overflow: hidden; animation: famBob .9s ease-in-out infinite alternate; }
+    .fam-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .fam-body { display: flex; flex-direction: column; min-width: 0; }
+    .fam-name { font-size: 34px; font-weight: 800; color: var(--fam); line-height: 1.05; -webkit-text-stroke: 1px rgba(74,44,74,.25); }
+    .fam-say { font-size: 30px; font-weight: 800; line-height: 1.15; color: var(--ink); }
+    .fam-card.mini { padding: 5px 18px 5px 5px; gap: 10px; }
+    .fam-card.mini::after { display: none; }
+    .fam-card.mini .fam-ava { width: 72px; height: 72px; font-size: 46px; border-width: 4px; }
+    .fam-card.mini .fam-name { font-size: 24px; }
+    .fam-card.mini .fam-say { font-size: 22px; }
+    @keyframes famIn { from { transform: translateX(120%) rotate(6deg); opacity: 0; } to { transform: translateX(0) rotate(0); opacity: 1; } }
+    @keyframes famOut { to { transform: translateX(120%); opacity: 0; } }
+    @keyframes famBob { from { transform: translateY(-3px) rotate(-4deg); } to { transform: translateY(3px) rotate(4deg); } }
+    @keyframes famHeart { 0%,100% { transform: scale(.85); } 50% { transform: scale(1.15); } }
+
+    #debug { position: fixed; left: 10px; bottom: 10px; z-index: 70; font: 12px/1.35 ui-monospace, monospace; background: rgba(255,255,255,.9); border: 2px solid var(--ink); border-radius: 8px; padding: 4px 8px; pointer-events: none; white-space: pre; }
+
+    @media (max-width: 760px), (max-height: 640px) {
+      .big { width: 92px; height: 92px; font-size: 44px; }
+      #bell { width: 124px; height: 124px; font-size: 70px; }
+      .pill { font-size: 26px; }
+      #daypips i { width: 36px; height: 36px; font-size: 22px; }
+      #ord-pic { width: 104px; height: 104px; font-size: 70px; }
+      #ord-word { font-size: 50px; min-height: 104px; }
+      #ord-qty { font-size: 52px; }
+      #ord-pips i { font-size: 30px; }
+      .opt { width: 116px; height: 116px; font-size: 66px; }
+      .lvl { width: 190px; min-height: 170px; }
+      #family { top: calc(max(14px, env(safe-area-inset-top)) + 110px); }
+      .fam-ava { width: 84px; height: 84px; font-size: 54px; }
+      .fam-name { font-size: 26px; } .fam-say { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="hud" hidden>
+    <button id="home" class="big" aria-label="Trang đầu">🏠</button>
+    <div id="hud-mid"><div id="daypips"></div></div>
+    <div id="hud-right">
+      <div class="pill" id="stars">⭐ <span id="stars-n">0</span></div>
+      <button id="say" class="big" aria-label="Nghe lại">🔊</button>
+    </div>
+  </div>
+
+  <div id="order" hidden>
+    <div class="ord-row">
+      <button id="ord-pic" aria-label="Nghe lại món">🍎</button>
+      <button id="ord-word" aria-label="Đánh vần"></button>
+      <div id="ord-qty">×3</div>
+    </div>
+    <div id="ord-pips"></div>
+  </div>
+  <button id="bell" class="big" aria-label="Giao hàng" hidden>🛎️</button>
+  <div id="hand" hidden><span>👆</span></div>
+
+  <div id="panel" hidden>
+    <div id="panel-top">
+      <div id="panel-emoji" hidden></div>
+      <div id="panel-word" hidden></div>
+      <div id="panel-price" hidden></div>
+    </div>
+    <div id="options"></div>
+  </div>
+
+  <div id="toast"></div>
+  <div id="confetti"></div>
+
+  <div id="dayend" class="overlay hide">
+    <div class="card">
+      <h2>🔒 Đóng cửa tiệm</h2>
+      <div class="faces" id="dayend-faces"></div>
+      <div class="starrow" id="dayend-stars"></div>
+      <div class="decor-next" id="dayend-next"></div>
+      <div id="dayend-actions">
+        <button id="btn-again" class="cta go">🔁 Ngày mới</button>
+        <button id="btn-level2" class="cta alt" hidden>⭐ Cấp 2</button>
+        <button id="btn-menu" class="cta alt">🏠</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="start" class="overlay">
+    <div class="inner">
+      <div class="logo">🧁</div>
+      <h1>Tiệm bánh của Nhím</h1>
+      <div id="levels">
+        <button class="lvl go" id="lvl1" aria-label="Cấp 1"><span class="num">1</span><span class="pic">🍎🍎🍎</span><span class="lbl">Đếm món</span></button>
+        <button class="lvl" id="lvl2" aria-label="Cấp 2"><span class="num">2</span><span class="pic">⭐⭐⭐</span><span class="lbl">Đếm xu</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fade"><div class="loader">🧁</div></div>
+  <div id="debug" hidden></div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
