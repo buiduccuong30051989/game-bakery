@@ -29,8 +29,9 @@ export class EGActor extends Actor {
   private readonly qa = new THREE.Quaternion();
   private readonly qp = new THREE.Quaternion();
   private readonly qi = new THREE.Quaternion();
-  /** Nhím đứng quầy: không đi, hay nhún nhảy */
-  apron = false;
+  /** ôm thùng hàng: hai tay đưa ra trước (giữ suốt lúc đi) */
+  carry = false;
+  private carryW = 0;
 
   async load(): Promise<void> {
     const { obj } = await instance(this.def.model, { skinned: true });
@@ -164,6 +165,13 @@ export class EGActor extends Actor {
       }
     }
     if (g) this.lastGesture = g;
+    this.carryW += ((this.carry ? 1 : 0) - this.carryW) * Math.min(1, dt * 6);
+    if (this.carryW > 0.01 && armR && armL && foreR && foreL) {
+      const cw = this.carryW;
+      this.add(armR.bone, X, -f * 0.95 * cw); this.add(armL.bone, X, -f * 0.95 * cw);
+      this.add(armR.bone, Z, -this.sideR * 0.25 * cw); this.add(armL.bone, Z, -this.sideL * 0.25 * cw);
+      this.add(foreR.bone, X, -f * 0.5 * cw); this.add(foreL.bone, X, -f * 0.5 * cw);
+    }
     // đầu: ngó nghiêng + gật khi nói + nghiêng khi nghĩ
     if (head) {
       const nod = this.talking ? Math.sin(t * 9) * 0.08 : 0;

@@ -39,6 +39,8 @@ export function customerLines(c: CustomerDef): GenLine[] {
     [`greet1_${c.id}`, cat ? `Meo meo! Chào Nhím! ${P} muốn mua` : `Chào Nhím! ${P} muốn mua`, r],
     [`greet2_${c.id}`, cat ? `Meo! Nhím ơi, ${P} đói bụng quá. ${P} muốn mua` : `Nhím ơi! Hôm nay ${P} muốn mua`, r],
     [`remind_${c.id}`, `Nhím ơi, ${P} muốn mua`, r],
+    [`buy_${c.id}`, cat ? `Meo meo! ${P} mua` : `Chào Nhím! ${P} mua`, r],
+    [`bring_${c.id}`, cat ? `Meo! ${P} mang thêm` : `Chào Nhím! ${P} mang hàng tới nè. ${P} mang thêm`, r],
     [`more_${c.id}`, `${P} cần thêm`, r],
     [`wrong_${c.id}`, `Ơ, ${P} không mua`, r],
     [`thanks1_${c.id}`, cat ? `Meo meo! Đúng rồi! ${P} cảm ơn Nhím!` : `Đúng rồi! Cảm ơn Nhím nhé!`, r],
@@ -50,7 +52,7 @@ export function customerLines(c: CustomerDef): GenLine[] {
   return L;
 }
 
-export const CUSTOMER_KEYS = ['greet1', 'greet2', 'remind', 'more', 'wrong', 'thanks1', 'thanks2', 'pay', 'bye', 'tap'] as const;
+export const CUSTOMER_KEYS = ['greet1', 'greet2', 'remind', 'buy', 'bring', 'more', 'wrong', 'thanks1', 'thanks2', 'pay', 'bye', 'tap'] as const;
 export const ck = (kind: typeof CUSTOMER_KEYS[number], c: CustomerDef) => `${kind}_${c.id}`;
 
 /** Mọi dòng tự sinh: tên món, chữ món, "N quả táo", số, xu, token đánh vần, chữ cái A2, câu khách. */

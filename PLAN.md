@@ -63,3 +63,8 @@ Người: model Quaternius CC0 (Animated Woman/Man/Old có Idle/Walk/Wave) đổ
 - **Toán = phép cộng trong 10**, bỏ vòng chỉ đếm. Khách gọi 2 phần ("3 quả táo và 2 quả táo nữa" / "2 cái bánh và 3 cây kem"); thẻ là phép cộng bằng hình `🍎🍎🍎 + 🍎🍎 = ?` + số; khay 2 ngăn, đủ thì trượt gộp; chọn tổng trong 3 số; sai thì món trên khay đếm 1..N cho bé thấy. Đúng: khách nói cả câu "Ba cộng hai bằng năm!".
 - Cấp 1: cùng 1 món, tổng ≤ 5, số sau 1–2. Cấp 2: 2 món khác nhau, tổng ≤ 10; trả xu cũng là phép cộng "bánh 2 xu + kem 3 xu = ? xu". Cấp 3 (thối tiền) vẫn để bản 2.
 - **Khách = Equestria Girls** (Sketchfab bordiyan20035, CC BY-NC, chỉ chơi trong nhà): Ba Cường = Rainbow Dash, Mẹ Yến = Rarity, Bà Tuyết = Celestia, Ông Cương = Applejack, Bác Hanh = Luna; bạn: Pinkie, Fluttershy, Sunset; Nhím = Twilight đứng quầy đeo tạp dề. Mèo giữ nguyên.
+
+## Thay đổi 01/10 (lần 2, theo ba Nhím)
+
+- **Chạm kệ chính xác**: bỏ raycast vào món nhỏ / hộp chạm chồng nhau (hàng trước che hàng sau, đo được 96/192 chạm sai); chọn đĩa theo hình chữ nhật màn hình, trùng thì tâm gần nhất, đĩa tiền cảnh ưu tiên hơn món trên khay. Soát 192/192 ở 4 cỡ màn (chuột + cảm ứng): `scripts/tap-matrix.mjs`.
+- **Phép trừ gắn hàng thật**: đĩa có số hàng (huy hiệu), bán thì giảm, nhập hàng thì tăng. Bài trừ "Kệ có 7 quả táo, ba mua 3 quả, còn lại mấy?" (Nhím chạm đưa từng món cho khách); bài cộng và trừ xen kẽ; giữa ngày 1 lần nhập hàng (bạn mang thùng: kệ còn 4, thêm 3 → mấy?). Cấp 1 trong 5, cấp 2 trong 10.

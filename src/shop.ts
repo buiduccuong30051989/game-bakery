@@ -60,15 +60,23 @@ export const SPOT = {
 export interface Slot {
   item: ItemDef;
   root: THREE.Group;
-  hit: THREE.Mesh;
   /** điểm món bay ra */
   from: THREE.Vector3;
+  /** số món đĩa đang có (hàng thật: khách mua thì giảm, nhập hàng thì tăng) */
+  stock: number;
+  /** 3 món bày trên đĩa (hiện tối đa 3, hết hàng thì đĩa trống) */
+  items: THREE.Group[];
+  /** huy hiệu số trên đĩa */
+  badge: THREE.Sprite;
+  badgeCtx: CanvasRenderingContext2D;
+  badgeTex: THREE.CanvasTexture;
+  /** viền đĩa (vật liệu riêng để loé sáng khi chạm) */
+  rim: THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial>;
 }
 
 export class Shop {
   readonly root = new THREE.Group();
   readonly slots: Slot[] = [];
-  readonly hits: THREE.Object3D[] = [];
   readonly doorHinge = new THREE.Group();
   readonly bell = new THREE.Group();
   readonly lamps: THREE.Group[] = [];
@@ -287,10 +295,10 @@ export class Shop {
     this.root.add(box(4.22, 0.08, 0.04, mat(PALETTE.pink), 0, 0.26, 2.43), box(4.22, 0.08, 0.04, mat(PALETTE.mint), 0, 0.52, 1.66));
   }
 
-  /** Bày món của ngày lên kệ (8 ô). Xoá ô cũ. */
-  async setShelf(items: ItemDef[]): Promise<void> {
+  /** Bày món của ngày lên kệ (8 ô) với số hàng ban đầu. Xoá ô cũ. */
+  async setShelf(items: ItemDef[], stock: number[] = items.map(() => 5)): Promise<void> {
     const plateMat = mat(0xffffff, { rough: 0.4 });
-    const rimMats = [mat(0xff9ec4), mat(0x9ee6cf), mat(0xffd36e), mat(0xb9a8ff)];
+    const rimCols = [0xff9ec4, 0x9ee6cf, 0xffd36e, 0xb9a8ff];
     const rows = [{ y: 0.41, z: 2.05 }, { y: 0.69, z: 1.3 }];
     const slots = await Promise.all(items.map(async (item, i) => {
       const row = rows[i < 4 ? 0 : 1];
@@ -300,27 +308,58 @@ export class Shop {
       const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.41, 0.37, 0.05, 36), plateMat);
       plate.position.y = 0.03;
       plate.receiveShadow = true;
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.03, 8, 40), rimMats[i % rimMats.length]);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.03, 8, 40), new THREE.MeshStandardMaterial({ color: rimCols[i % 4], roughness: 0.85, emissive: 0xffe066, emissiveIntensity: 0 }));
       rim.rotation.x = Math.PI / 2; rim.position.y = 0.06;
       root.add(plate, rim);
+      const shown: THREE.Group[] = [];
       for (const [ox, oz] of [[-0.15, 0.09], [0.16, 0.07], [0, -0.13]] as const) {
         const m = await this.itemMesh(item, item.size * 0.66);
         m.position.set(ox, 0.06, oz);
         m.rotation.y += (Math.random() - 0.5) * 0.6;
         root.add(m);
+        shown.push(m);
       }
-      const hit = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.8, 0.76), new THREE.MeshBasicMaterial({ visible: false }));
-      hit.position.y = 0.35;
-      hit.userData.slot = i;
-      root.add(hit);
-      return { item, root, hit, from: new THREE.Vector3(x, row.y + 0.3, row.z) } satisfies Slot;
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const badgeTex = new THREE.CanvasTexture(c);
+      badgeTex.colorSpace = THREE.SRGBColorSpace;
+      const badge = new THREE.Sprite(new THREE.SpriteMaterial({ map: badgeTex, transparent: true, depthWrite: false, depthTest: false }));
+      badge.scale.setScalar(0.3);
+      badge.position.set(0.34, 0.42, 0.28);
+      badge.renderOrder = 15;
+      root.add(badge);
+      const slot: Slot = { item, root, from: new THREE.Vector3(x, row.y + 0.3, row.z), stock: stock[i] ?? 5, items: shown, badge, badgeCtx: c.getContext('2d')!, badgeTex, rim };
+      this.setStock(slot, slot.stock, false);
+      return slot;
     }));
     for (const s of this.slots) s.root.removeFromParent();
     this.slots.length = 0;
-    this.hits.length = 0;
     for (const s of slots) this.shelfGroup.add(s.root);
     this.slots.push(...slots);
-    this.hits.push(...slots.map((s) => s.hit));
+  }
+
+  /** Đổi số hàng của đĩa: huy hiệu số + số món bày (≤ 3); bump = huy hiệu nảy. */
+  setStock(s: Slot, n: number, bump = true): void {
+    s.stock = Math.max(0, n);
+    s.items.forEach((m, k) => { m.visible = k < Math.min(3, s.stock); });
+    const ctx = s.badgeCtx;
+    ctx.clearRect(0, 0, 128, 128);
+    ctx.fillStyle = s.stock ? '#ffffff' : '#ffe0e8';
+    ctx.strokeStyle = '#4a2c4a';
+    ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.arc(64, 64, 54, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = s.stock ? '#4a2c4a' : '#d0587e';
+    ctx.font = '800 76px "Baloo 2", system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(s.stock), 64, 72);
+    s.badgeTex.needsUpdate = true;
+    if (bump) void tween(320, (k) => s.badge.scale.setScalar(0.3 * (1 + Math.sin(k * Math.PI) * 0.45)));
+  }
+
+  /** Phản hồi chạm đĩa: đĩa nảy + viền loé vàng. */
+  pressSlot(s: Slot): void {
+    void tween(260, (k) => s.root.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.12));
+    void tween(520, (k) => { s.rim.material.emissiveIntensity = Math.sin(k * Math.PI) * 0.9; s.rim.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.08); });
   }
 
   /** 1 bản model món ăn, fit theo cạnh lớn nhất. */

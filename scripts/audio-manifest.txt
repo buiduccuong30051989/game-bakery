@@ -2,13 +2,21 @@
 # Câu sinh từ dữ liệu (tên món, "ba quả táo", câu từng khách, token đánh vần): scripts/audio/_gen.txt (TỰ SINH).
 # Thay giọng thật: ghi đè public/audio/<key>.m4a cùng tên.
 # --- người dẫn
-intro_first|Chào Nhím! Hôm nay Nhím làm chủ tiệm bánh nhé! Khách gọi hai phần, Nhím chạm vào món trên kệ cho đủ, rồi cộng lại xem tất cả là mấy, chọn số đúng và bấm chuông giao hàng nhé!
+intro_first|Chào Nhím! Hôm nay Nhím làm chủ tiệm bánh nhé! Khách mua thì Nhím lấy món trên kệ, cộng hoặc trừ xem được mấy, chọn số đúng rồi bấm chuông giao hàng nhé!
 intro_l2|Cấp hai nè! Khách mua hai món khác nhau, rồi trả tiền bằng xu ngôi sao. Nhím cộng giúp nhé!
-level1_name|Cấp một. Phép cộng đến năm.
-level2_name|Cấp hai. Phép cộng đến mười.
+level1_name|Cấp một. Cộng và trừ đến năm.
+level2_name|Cấp hai. Cộng và trừ đến mười.
 va|và
 nua|nữa.
 cong|cộng
+tru|trừ
+ke_co|Kệ có
+ke_con|Kệ còn
+con_lai_may|Còn lại mấy?
+bay_gio_may|Bây giờ có tất cả mấy?
+give_hint|Nhím chạm vào món trên khay để đưa cho khách nhé!
+het_roi|Đĩa này hết hàng rồi nè!
+nhap_hang|A, có bạn mang hàng tới tiệm kìa!
 bang|bằng
 bang_may|bằng mấy?
 bang_may_xu|bằng mấy xu?

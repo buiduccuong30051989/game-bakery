@@ -32,6 +32,10 @@ export const PARAM = {
   /** ép phép cộng của khách đầu: ?a=3&b=2 (mỗi số 1..5) */
   a: params.has('a') ? Math.max(1, Math.min(5, Number(params.get('a')))) : null,
   b: params.has('b') ? Math.max(1, Math.min(5, Number(params.get('b')))) : null,
+  /** loại bài khách đầu: ?round=sub | add (sau đó xen kẽ) */
+  round: params.get('round'),
+  /** nhập hàng ngay trước khách đầu: ?restock=1 */
+  restock: params.get('restock') === '1',
   /** ngày ngắn (soát nhanh cuối ngày): số khách */
   day: params.has('day') ? Math.max(1, Math.min(6, Number(params.get('day')))) : null,
 };

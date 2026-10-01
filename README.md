@@ -1,18 +1,20 @@
 # Tiệm bánh của Nhím (game 4, Three.js)
 
-Nhím (Twilight Sparkle đeo tạp dề) làm chủ tiệm bánh. Cả nhà đóng vai Equestria Girls – Ba Cường (Rainbow Dash), Mẹ Yến (Rarity), Bà Tuyết (Celestia), Ông Cương (Applejack), Bác Hanh (Luna) – cùng các bạn Pinkie, Fluttershy, Sunset và hai bé mèo Mun, Rơm lần lượt vào tiệm gọi món. Toán là **phép cộng trong 10** (bé đã biết đếm): mỗi khách gọi 2 phần, Nhím lấy món, cộng lại, chọn tổng, bấm chuông. Khách vui để lại ⭐, đủ sao thì tiệm được trang trí. Thiết kế: `PLAN.md`. Ghi công: `CREDITS.md` (model Equestria Girls CC BY-NC: chỉ chơi trong nhà).
+Nhím (Twilight Sparkle đeo tạp dề) làm chủ tiệm bánh. Cả nhà đóng vai Equestria Girls – Ba Cường (Rainbow Dash), Mẹ Yến (Rarity), Bà Tuyết (Celestia), Ông Cương (Applejack), Bác Hanh (Luna) – cùng các bạn Pinkie, Fluttershy, Sunset và hai bé mèo Mun, Rơm lần lượt vào tiệm gọi món. Toán là **cộng và trừ trong 10** (bé đã biết đếm) gắn với hàng thật trên kệ: khách mua 2 phần thì cộng, khách mua bớt thì trừ xem kệ còn mấy, bạn mang hàng tới thì cộng thêm. Khách vui để lại ⭐, đủ sao thì tiệm được trang trí. Thiết kế: `PLAN.md`. Ghi công: `CREDITS.md` (model Equestria Girls CC BY-NC: chỉ chơi trong nhà).
 
 ## Cách chơi (bé 5 tuổi, không cần biết đọc, chỉ chạm)
 
-- Màn đầu: thẻ **1** (cộng tới 5) hoặc **2** (cộng tới 10, trả xu). Cấp 2 mở sau 1 ngày cấp 1.
-- Mỗi ngày 6 khách: 4 người nhà + 1 bạn xáo thứ tự + 1 mèo chen giữa. Chuông cửa leng keng, khách vào quầy, vẫy, nói "Chào Nhím! Mẹ muốn mua ba cây kem và hai cây kem nữa" rồi người dẫn hỏi "Ba cộng hai bằng mấy?".
-- **Thẻ gọi món = phép cộng bằng hình**: `[🍦🍦🍦 3] + [🍦🍦 2] = ?`. Cấp 1 cùng 1 món (tổng ≤ 5, số sau 1–2), cấp 2 hai món khác nhau (`[🍩 bánh 2] + [🍦 kem 3]`, tổng ≤ 10). Chạm chữ món = đánh vần GDPT 2018, chữ sáng theo giọng; chạm hình = khách nhắc lại.
-- **Lấy món**: chạm đĩa trên kệ → món bay vào **ngăn trái / ngăn phải** của khay (dấu ➕ ở giữa), đọc số đếm của ngăn, hình trên thẻ sáng dần, nhóm đang lấy viền hồng nhấp nháy. Chạm nhầm món: khách nghĩ ngợi, "Mẹ không mua cây nấm đâu nè" (món không bay vào). Chạm món trên khay để bỏ ra.
-- Đủ 2 ngăn: 2 ngăn **trượt lại thành một hàng** → 3 nút số lớn. Chọn đúng: ô `?` thành số, khách + Nhím giơ tay mừng, "Đúng rồi! Năm. Nhím bấm chuông giao hàng nhé!". Chọn sai: nút sai biến mất, đọc số vừa chọn, **món trên khay nảy lên lần lượt đếm 1…N** cho bé thấy đáp án, hỏi lại; sai lần 2 nút đúng nhấp nháy (+ đếm lại). Không bao giờ thua.
-- **🛎️** (đầu trái quầy): khách nói cả câu "Ba cộng hai bằng năm!", nhận hàng, nhảy mừng, tim bay, ⭐. Bấm chuông sớm: khách nhắc nhẹ "Mẹ cần thêm hai cây kem nữa nè".
-- **Cấp 2 – trả xu cũng là phép cộng**: khách đưa xu ⭐ thành 2 nhóm theo giá từng món; bong bóng hiện `[🍉 dưa ⭐⭐⭐ 3 xu] + [🍊 cam ⭐⭐⭐⭐⭐ 5 xu] = ?`, đọc "dưa ba xu cộng cam năm xu bằng mấy xu?" → chọn số (sai thì xu nảy đếm 1..N) → xu bay vào hũ. Khách thứ 2 và 5 trong ngày còn có **bảng giá mất chữ** (A2).
-- **Ngồi im 10 s**: khách nhắc lại món (khách đầu còn chỉ cách: "chạm vào món trên kệ"), tay 👆 chỉ đúng đĩa / chuông; đang chọn số thì hỏi lại + các nút nhún.
+- Màn đầu: thẻ **1** (cộng / trừ trong 5) hoặc **2** (trong 10, có trả xu). Cấp 2 mở sau 1 ngày cấp 1.
+- **Hàng thật trên kệ**: 8 đĩa, mỗi đĩa có huy hiệu số (cấp 1: 3–5 món, cấp 2: 5–10, đầy lại mỗi ngày). Đĩa hiện tối đa 3 món, hết hàng thì trống. Khách mua thì số giảm, nhập hàng thì số tăng, giữ suốt ngày.
+- Mỗi ngày 6 khách (4 người nhà + 1 bạn + 1 mèo), bài **cộng** và **trừ xen kẽ**; giữa ngày có 1 lần **nhập hàng**.
+- **Bài cộng**: "Mẹ muốn mua ba cây kem và hai cây kem nữa" → thẻ `[🍦🍦🍦 3] + [🍦🍦 2] = ?` → chạm đĩa, món bay vào ngăn trái / phải của khay (đọc số, hình trên thẻ sáng dần) → 2 ngăn trượt gộp → chọn tổng → 🛎️ → khách nói "Ba cộng hai bằng năm!". Cấp 1 cùng 1 món (tổng ≤ 5, số sau 1–2), cấp 2 hai món khác nhau (≤ 10) + trả xu cũng là phép cộng (`[🍉 3 xu] + [🍊 5 xu] = ? xu`).
+- **Bài trừ** ("khách mua thì kệ còn mấy"): "Kệ có bảy quả táo" (đúng số trên đĩa, 7 quả bày ra khay) → "Chào Nhím! Ba mua ba quả táo" → thẻ `[🧺 🍎×7] − [🛍️ 🍎×3] = ?` → Nhím **chạm từng món trên khay để đưa khách** (bay vào tay khách, đếm to, hình bị gạch ✕, số trên đĩa giảm) → "Còn lại mấy?" + "bảy trừ ba bằng mấy?" → chọn số → 🛎️ → "Bảy trừ ba bằng bốn!", phần còn lại về đĩa.
+- **Nhập hàng** (phép cộng): 1 bạn (Pinkie / Fluttershy / Sunset, người không làm khách hôm đó) ôm thùng hàng vào, đặt lên khay: "Kệ còn bốn quả táo" (4 quả ra ngăn trái) → "Chị mang thêm ba quả táo nữa" (3 quả nhảy từ thùng ra ngăn phải) → "Bây giờ có tất cả mấy?" → chọn → hàng lên đĩa, huy hiệu đổi số. Kệ không đủ hàng cho khách thì cũng tự gọi nhập hàng.
+- Chọn sai số: nút sai biến mất, đọc số vừa chọn, **món (hoặc xu) trên khay nảy lên đếm 1…N** cho bé thấy đáp án, hỏi lại; sai lần 2 nút đúng nhấp nháy. Không bao giờ thua. Chạm nhầm món: khách nghĩ ngợi "Mẹ không mua cây nấm đâu nè". Đĩa hết hàng: "Đĩa này hết hàng rồi nè!".
+- Chạm chữ món = đánh vần GDPT 2018. Khách 2 và 5 (cấp 2) còn có **bảng giá mất chữ** (A2).
+- **Ngồi im 10 s**: khách nhắc lại, tay 👆 chỉ đúng đĩa / món cần đưa / chuông.
 - **Đóng cửa tiệm** (sau 6 khách): đếm ⭐, cả nhà khen, mở nấc trang trí (6 ⭐ hoa + rèm + cờ, 12 ⭐ đèn nháy + bóng bay, 18 ⭐ bảng hiệu + tháp bánh + sao).
+- **Chạm chính xác**: chạm kệ chọn đĩa theo hình chữ nhật trên màn hình của từng đĩa (đĩa + chồng món), trùng thì lấy tâm gần nhất, trượt ra ngoài chút thì lấy đĩa gần nhất; đĩa ở tiền cảnh ưu tiên hơn món trên khay phía sau. Chạm đúng thì đĩa nảy + viền loé vàng. Soát: `node scripts/tap-matrix.mjs` (bấm tâm từng món, 4 cỡ màn, chuột + cảm ứng).
 
 ## Tiệm "sống"
 
@@ -46,7 +48,9 @@ node scripts/word-audio.mjs --check       # soát dữ liệu (chính tả, ch�
 |---|---|
 | `?level=2` | vào thẳng cấp 2 (bỏ qua màn đầu; cấp chưa mở vẫn vào được) |
 | `?customer=ba_cuong` | khách đầu tiên trong ngày (`ba_cuong`, `me_yen`, `ba_tuyet`, `ong_cuong`, `bac_hanh`, `pinkie`, `fluttershy`, `sunset`, `mun`, `rom`) |
-| `?a=3&b=2` | ép phép cộng của khách đầu (mỗi số 1..5) |
+| `?a=3&b=2` | ép số của khách đầu (cộng: a + b; trừ: kệ có a, mua b) |
+| `?round=sub` / `?round=add` | loại bài của khách đầu (sau đó xen kẽ) |
+| `?restock=1` | nhập hàng ngay trước khách đầu |
 | `?day=1` | ngày ngắn: chỉ N khách (soát nhanh "Đóng cửa tiệm") |
 | `?auto=1` | tự chơi: khách đầu thử đường sai (chạm nhầm món, bấm chuông sớm, chọn sai tổng / xu / chữ 1 lần), khách sau làm đúng |
 | `?mute=1` | tắt tiếng (giữ nhịp thời gian) |
